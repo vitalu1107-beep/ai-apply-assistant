@@ -36,8 +36,11 @@ const requiredText = [
   "AI 智能投递助手",
   "UI 原型",
   "未接 API",
+  "工作台",
+  "投递记录",
   "生成投递方案",
   "清空内容",
+  "保存到投递记录",
   "输入信息",
   "粘贴岗位 JD，选择投递场景，生成可直接复制的话术。",
   "生成结果",
@@ -60,6 +63,25 @@ const requiredText = [
   "业务主管",
   "老板/创始人",
   "当前使用：投递版简历",
+  "总投递数",
+  "已回复数",
+  "回复率",
+  "待跟进数",
+  "已约面数",
+  "已拒绝数",
+  "全部",
+  "已投递",
+  "已回复",
+  "待跟进",
+  "已约面",
+  "已拒绝",
+  "放弃",
+  "当前状态",
+  "投递日期",
+  "下次跟进日期",
+  "岗位链接",
+  "备注",
+  "删除",
 ];
 
 for (const text of requiredText) {
@@ -95,9 +117,7 @@ for (const path of forbiddenPaths) {
 const forbiddenUiPatterns = [
   "h-screen",
   "overflow-hidden",
-  "overflow-y-auto",
   "overflow: hidden",
-  "overflow-y: auto",
   "position: sticky",
 ];
 
@@ -114,6 +134,41 @@ assert(
   css.includes("grid-template-columns: 1fr 1fr"),
   "app/globals.css should use a symmetric 1fr 1fr workbench grid",
 );
+assert(
+  css.includes("align-items: stretch"),
+  "app/globals.css should stretch the symmetric panels to equal height",
+);
+assert(
+  css.includes("height: calc(100vh - 180px)"),
+  "app/globals.css should keep both workbench panels at a fixed viewport-relative height",
+);
+assert(
+  css.includes("min-height: 720px"),
+  "app/globals.css should keep both workbench panels visually substantial",
+);
+assert(
+  css.includes("flex: 1"),
+  "app/globals.css should make panel bodies flex to fill the fixed panel height",
+);
+assert(
+  css.includes("overflow-y: auto"),
+  "app/globals.css should allow internal scrolling inside panel bodies or tab content",
+);
+
+for (const panelPart of ["panel-header", "panel-body", "panel-footer"]) {
+  assert(page.includes(panelPart), `app/page.tsx should use ${panelPart}`);
+}
+
+for (const storageTerm of [
+  "APPLICATION_RECORDS_KEY",
+  "localStorage",
+  "saveCurrentApplication",
+  "updateRecordStatus",
+  "updateRecordNotes",
+  "deleteRecord",
+]) {
+  assert(page.includes(storageTerm), `app/page.tsx should include ${storageTerm}`);
+}
 
 const forbiddenUiText = [
   "邮件",
