@@ -9,25 +9,16 @@ const platforms = ["Boss直聘", "猎聘", "拉勾", "其他"];
 const targets = ["HR", "猎头", "业务主管", "老板/创始人"];
 const cityOptions = ["杭州", "上海", "深圳", "广州", "远程", "其他"];
 const workModeOptions = ["到岗", "混合办公", "远程", "不确定"];
-const jobDirectionOptions = [
-  "AI运营",
-  "Agent运营",
-  "AI产品运营",
-  "用户增长",
-  "用户运营",
-  "内容运营",
-  "私域运营",
-  "会员运营",
-  "其他",
-];
-const jobTypeOptions = [
+const systemJobTypeLabels = [
   "纯执行岗",
   "高级执行岗",
   "策略执行结合岗",
   "项目负责人岗",
   "管理岗",
-];
-const workloadRiskOptions = ["正常", "偏忙", "高压", "明显996风险"];
+] as const;
+const executionRiskLabels = ["低", "中", "高"] as const;
+const workloadRiskLabels = ["正常", "偏忙", "高压", "明显996风险"] as const;
+const salaryCityFitLabels = ["符合", "待确认", "不符合"] as const;
 const focusOptions = [
   "AI运营能力",
   "用户增长经验",
@@ -93,6 +84,10 @@ type AnalysisTab = "match" | "resume" | "interview";
 type ViewTab = "workbench" | "records";
 type ApplicationStatus = (typeof statusOptions)[number];
 type ApplicationFilter = (typeof filterOptions)[number];
+type JobTypeJudgement = (typeof systemJobTypeLabels)[number];
+type ExecutionRisk = (typeof executionRiskLabels)[number];
+type WorkloadRisk = (typeof workloadRiskLabels)[number];
+type SalaryCityFit = (typeof salaryCityFitLabels)[number];
 
 type ApplicationRecord = {
   id: string;
@@ -150,9 +145,6 @@ export default function Home() {
   const [salaryNegotiable, setSalaryNegotiable] = useState(false);
   const [selectedCity, setSelectedCity] = useState("杭州");
   const [selectedWorkMode, setSelectedWorkMode] = useState("混合办公");
-  const [selectedJobDirection, setSelectedJobDirection] = useState("AI运营");
-  const [selectedJobType, setSelectedJobType] = useState("策略执行结合岗");
-  const [selectedWorkloadRisk, setSelectedWorkloadRisk] = useState("正常");
   const [resumeText, setResumeText] = useState("");
   const [jdText, setJdText] = useState("");
   const [localPrompt, setLocalPrompt] = useState("");
@@ -218,54 +210,70 @@ export default function Home() {
   }, [records]);
 
   const jobFitJudgement = useMemo(() => {
-    const preferredDirections = [
-      "AI运营",
-      "Agent运营",
-      "AI产品运营",
-      "用户增长",
-      "用户运营",
-      "内容运营",
-      "私域运营",
-    ];
-    const growthJobTypes = ["策略执行结合岗", "项目负责人岗", "管理岗", "高级执行岗"];
-    const jdRiskWords = ["销售", "招商", "电销", "陌拜", "客服", "高压", "996", "社群值守"];
-    const executionWords = ["日常维护", "发布内容", "完成上级安排", "基础执行"];
-    const hasRiskSignal =
-      ["高压", "明显996风险"].includes(selectedWorkloadRisk) ||
-      jdRiskWords.some((word) => jdText.includes(word));
-    const hasExecutionSignal =
-      selectedJobType === "纯执行岗" || executionWords.some((word) => jdText.includes(word));
-    const hasPreferredDirection = preferredDirections.includes(selectedJobDirection);
-    const hasGrowthSpace =
-      growthJobTypes.includes(selectedJobType) ||
+    const riskSignals = ["强销售", "招商", "电销", "陌拜", "客服", "高压", "996", "KPI压力"];
+    const executionSignals = ["日常维护", "发布内容", "完成上级安排", "基础执行", "社群值守"];
+    const growthSignals = ["AI", "Agent", "增长", "策略", "项目", "数据", "复盘", "提效", "工具"];
+    const hasRiskSignal = riskSignals.some((word) => jdText.includes(word));
+    const hasExecutionSignal = executionSignals.some((word) => jdText.includes(word));
+    const hasGrowthSignal =
+      growthSignals.some((word) => jdText.includes(word)) ||
       selectedFocus.some((area) =>
         ["AI运营能力", "用户增长经验", "Agent项目经验", "数据复盘", "项目管理"].includes(area),
       );
 
     let priority: "A" | "B" | "C" | "不建议投递" = "B";
-    if (hasPreferredDirection && hasGrowthSpace && !hasRiskSignal && !hasExecutionSignal) {
-      priority = "A";
-    } else if (hasRiskSignal && hasExecutionSignal) {
+    if (hasRiskSignal && hasExecutionSignal) {
       priority = "不建议投递";
-    } else if (hasRiskSignal || hasExecutionSignal || selectedJobDirection === "其他") {
+    } else if (hasRiskSignal || hasExecutionSignal) {
       priority = "C";
+    } else if (hasGrowthSignal) {
+      priority = "A";
     }
+
+    const recommendation =
+      priority === "A" || priority === "B"
+        ? "建议投递"
+        : priority === "C"
+          ? "谨慎投递"
+          : "不建议投递";
+    const jobType: JobTypeJudgement = hasExecutionSignal
+      ? "纯执行岗"
+      : hasGrowthSignal
+        ? "策略执行结合岗"
+        : "高级执行岗";
+    const executionRisk: ExecutionRisk = hasExecutionSignal ? "高" : hasGrowthSignal ? "低" : "中";
+    const workloadRisk: WorkloadRisk = hasRiskSignal
+      ? jdText.includes("996")
+        ? "明显996风险"
+        : "高压"
+      : "正常";
+    const salaryCityFit: SalaryCityFit =
+      selectedCity === "其他" && selectedWorkMode === "到岗" && !salaryNegotiable
+        ? "待确认"
+        : "符合";
+    const reasons = hasExecutionSignal
+      ? [
+          "岗位方向需要进一步确认，JD 出现基础执行、日常维护或社群值守信号",
+          "如果缺少策略制定、项目推进和 AI 工具落地空间，投递优先级需要下调",
+          "可先用简短话术试探岗位是否包含用户增长和数据复盘职责",
+        ]
+      : [
+          "岗位方向偏 AI 运营和用户增长，符合当前求职方向",
+          "岗位具备项目推进和工具提效空间，不是单纯执行",
+          "可结合过往用户增长、私域运营和 AI Agent 项目进行表达",
+        ];
 
     return {
       priority,
-      fit: priority === "A" || priority === "B" ? "适合" : priority === "C" ? "谨慎" : "不适合",
-      pureExecution: hasExecutionSignal ? "是" : selectedJobType === "高级执行岗" ? "不确定" : "否",
-      worthCustomizing: priority === "A" ? "是" : priority === "B" || priority === "C" ? "一般" : "否",
-      reason: hasPreferredDirection
-        ? "岗位方向贴近 AI运营、用户增长或内容用户运营，可沉淀 AI 工具落地、Agent 项目经验和数据复盘表达。"
-        : "岗位方向与 AI运营、Agent运营、AI产品运营、用户增长等目标方向的关联度一般，需要看 JD 是否有策略制定和项目推进空间。",
-      risk: hasRiskSignal
-        ? "JD 或筛选项出现强销售、招商、电销、陌拜、高压或明显996等信号，建议谨慎投入定制成本。"
-        : hasExecutionSignal
-          ? "岗位可能偏基础执行、日常维护、发布内容或社群值守，需要确认是否有策略制定、用户增长和 AI 工具落地空间。"
-          : "当前 mock 判断未发现明显纯执行、强销售或高压风险，可优先用推荐话术试探沟通。",
+      recommendation,
+      jobType,
+      executionRisk,
+      workloadRisk,
+      salaryCityFit,
+      reasons,
+      risk: "需要确认岗位是否有实际项目 owner 权限，避免责任大于资源",
     };
-  }, [jdText, selectedFocus, selectedJobDirection, selectedJobType, selectedWorkloadRisk]);
+  }, [jdText, salaryNegotiable, selectedCity, selectedFocus, selectedWorkMode]);
 
   function toggleFocus(option: string) {
     setSelectedFocus((current) =>
@@ -284,9 +292,6 @@ export default function Home() {
     setSalaryNegotiable(false);
     setSelectedCity("杭州");
     setSelectedWorkMode("混合办公");
-    setSelectedJobDirection("AI运营");
-    setSelectedJobType("策略执行结合岗");
-    setSelectedWorkloadRisk("正常");
     setResumeText("");
     setJdText("");
     setLocalPrompt("");
@@ -309,9 +314,9 @@ export default function Home() {
       salaryNegotiable,
       city: selectedCity,
       workMode: selectedWorkMode,
-      jobDirection: selectedJobDirection,
-      jobType: selectedJobType,
-      workloadRisk: selectedWorkloadRisk,
+      jobDirection: "AI运营",
+      jobType: jobFitJudgement.jobType,
+      workloadRisk: jobFitJudgement.workloadRisk,
       platform: selectedPlatform,
       recipient: selectedTarget,
       focusAreas: selectedFocus,
@@ -510,123 +515,6 @@ export default function Home() {
               </section>
 
               <section className="module-block">
-                <h3 className="module-title">薪资区间</h3>
-                <div className="field-grid compact-fields">
-                  <label className="field">
-                    <span className="field-label">期望薪资</span>
-                    <input
-                      className="text-input"
-                      value={expectedSalary}
-                      onChange={(event) => setExpectedSalary(event.target.value)}
-                      placeholder="例如 20-30K"
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">可接受底线</span>
-                    <input
-                      className="text-input"
-                      value={minimumSalary}
-                      onChange={(event) => setMinimumSalary(event.target.value)}
-                      placeholder="例如 18K"
-                    />
-                  </label>
-                </div>
-                <label className="inline-check">
-                  <input
-                    type="checkbox"
-                    checked={salaryNegotiable}
-                    onChange={(event) => setSalaryNegotiable(event.target.checked)}
-                  />
-                  <span>面议</span>
-                </label>
-              </section>
-
-              <section className="module-block">
-                <h3 className="module-title">工作城市</h3>
-                <div className="chip-list" aria-label="工作城市选择">
-                  {cityOptions.map((city) => (
-                    <button
-                      className={`chip ${selectedCity === city ? "is-selected" : ""}`}
-                      key={city}
-                      onClick={() => setSelectedCity(city)}
-                      type="button"
-                      aria-pressed={selectedCity === city}
-                    >
-                      {city}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="module-block">
-                <h3 className="module-title">工作模式</h3>
-                <div className="chip-list" aria-label="工作模式选择">
-                  {workModeOptions.map((mode) => (
-                    <button
-                      className={`chip ${selectedWorkMode === mode ? "is-selected" : ""}`}
-                      key={mode}
-                      onClick={() => setSelectedWorkMode(mode)}
-                      type="button"
-                      aria-pressed={selectedWorkMode === mode}
-                    >
-                      {mode}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="module-block">
-                <h3 className="module-title">岗位方向</h3>
-                <div className="chip-list" aria-label="岗位方向选择">
-                  {jobDirectionOptions.map((direction) => (
-                    <button
-                      className={`chip ${selectedJobDirection === direction ? "is-selected" : ""}`}
-                      key={direction}
-                      onClick={() => setSelectedJobDirection(direction)}
-                      type="button"
-                      aria-pressed={selectedJobDirection === direction}
-                    >
-                      {direction}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="module-block">
-                <h3 className="module-title">岗位类型</h3>
-                <div className="chip-list" aria-label="岗位类型选择">
-                  {jobTypeOptions.map((type) => (
-                    <button
-                      className={`chip ${selectedJobType === type ? "is-selected" : ""}`}
-                      key={type}
-                      onClick={() => setSelectedJobType(type)}
-                      type="button"
-                      aria-pressed={selectedJobType === type}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="module-block">
-                <h3 className="module-title">工作强度风险</h3>
-                <div className="chip-list" aria-label="工作强度风险选择">
-                  {workloadRiskOptions.map((risk) => (
-                    <button
-                      className={`chip ${selectedWorkloadRisk === risk ? "is-selected" : ""}`}
-                      key={risk}
-                      onClick={() => setSelectedWorkloadRisk(risk)}
-                      type="button"
-                      aria-pressed={selectedWorkloadRisk === risk}
-                    >
-                      {risk}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="module-block">
                 <h3 className="module-title">强调方向</h3>
                 <div className="chip-list" aria-label="强调方向选择">
                   {focusOptions.map((option) => (
@@ -658,6 +546,81 @@ export default function Home() {
                   placeholder="粘贴你的简历文本，建议使用投递版简历内容。"
                 />
               </details>
+
+              <details className="preference-collapse module-block">
+                <summary>
+                  <span>个人筛选偏好</span>
+                  <span className="summary-action">展开编辑</span>
+                </summary>
+
+                <div className="preference-content">
+                  <section className="module-block">
+                    <h3 className="module-title">目标城市</h3>
+                    <div className="chip-list" aria-label="目标城市选择">
+                      {cityOptions.map((city) => (
+                        <button
+                          className={`chip ${selectedCity === city ? "is-selected" : ""}`}
+                          key={city}
+                          onClick={() => setSelectedCity(city)}
+                          type="button"
+                          aria-pressed={selectedCity === city}
+                        >
+                          {city}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="module-block">
+                    <h3 className="module-title">薪资偏好</h3>
+                    <div className="field-grid compact-fields">
+                      <label className="field">
+                        <span className="field-label">期望薪资</span>
+                        <input
+                          className="text-input"
+                          value={expectedSalary}
+                          onChange={(event) => setExpectedSalary(event.target.value)}
+                          placeholder="例如 20-30K"
+                        />
+                      </label>
+                      <label className="field">
+                        <span className="field-label">可接受底线薪资</span>
+                        <input
+                          className="text-input"
+                          value={minimumSalary}
+                          onChange={(event) => setMinimumSalary(event.target.value)}
+                          placeholder="例如 18K"
+                        />
+                      </label>
+                    </div>
+                    <label className="inline-check">
+                      <input
+                        type="checkbox"
+                        checked={salaryNegotiable}
+                        onChange={(event) => setSalaryNegotiable(event.target.checked)}
+                      />
+                      <span>面议</span>
+                    </label>
+                  </section>
+
+                  <section className="module-block">
+                    <h3 className="module-title">可接受工作模式</h3>
+                    <div className="chip-list" aria-label="可接受工作模式选择">
+                      {workModeOptions.map((mode) => (
+                        <button
+                          className={`chip ${selectedWorkMode === mode ? "is-selected" : ""}`}
+                          key={mode}
+                          onClick={() => setSelectedWorkMode(mode)}
+                          type="button"
+                          aria-pressed={selectedWorkMode === mode}
+                        >
+                          {mode}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              </details>
             </div>
 
             <div className="panel-footer">
@@ -688,9 +651,9 @@ export default function Home() {
                 <strong>某 AI 公司｜AI 运营｜Boss直聘｜HR｜建议优先级 A</strong>
               </section>
 
-              <section className="judgement-card module-block" aria-label="岗位判断卡">
+              <section className="judgement-card module-block" aria-label="岗位筛选判断">
                 <div className="section-row">
-                  <h3 className="module-title">岗位判断卡</h3>
+                  <h3 className="module-title">岗位筛选判断</h3>
                   <span className="decision-pill">mock 判断</span>
                 </div>
                 <div className="judgement-grid">
@@ -699,21 +662,33 @@ export default function Home() {
                     <strong>{jobFitJudgement.priority}</strong>
                   </div>
                   <div>
-                    <span>是否适合我</span>
-                    <strong>{jobFitJudgement.fit}</strong>
+                    <span>是否建议投递</span>
+                    <strong>{jobFitJudgement.recommendation}</strong>
                   </div>
                   <div>
-                    <span>是否偏纯执行</span>
-                    <strong>{jobFitJudgement.pureExecution}</strong>
+                    <span>岗位类型判断</span>
+                    <strong>{jobFitJudgement.jobType}</strong>
                   </div>
                   <div>
-                    <span>是否值得定制话术</span>
-                    <strong>{jobFitJudgement.worthCustomizing}</strong>
+                    <span>纯执行风险</span>
+                    <strong>{jobFitJudgement.executionRisk}</strong>
+                  </div>
+                  <div>
+                    <span>工作强度风险</span>
+                    <strong>{jobFitJudgement.workloadRisk}</strong>
+                  </div>
+                  <div>
+                    <span>薪资城市适配</span>
+                    <strong>{jobFitJudgement.salaryCityFit}</strong>
                   </div>
                 </div>
                 <div className="judgement-note">
                   <span>个性化判断理由</span>
-                  <p>{jobFitJudgement.reason}</p>
+                  <ul className="judgement-reasons">
+                    {jobFitJudgement.reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
                 </div>
                 <div className="judgement-note is-risk">
                   <span>风险提醒</span>
@@ -860,10 +835,15 @@ export default function Home() {
             </div>
 
             <div className="panel-footer">
-              <button className="primary-button full-width-button" type="button" onClick={saveCurrentApplication}>
-                <Save size={16} aria-hidden="true" />
-                保存到投递记录
-              </button>
+              <div className="button-row">
+                <button className="primary-button" type="button" onClick={saveCurrentApplication}>
+                  <Save size={16} aria-hidden="true" />
+                  保存到投递记录
+                </button>
+                <button className="secondary-button" type="button" onClick={() => copyText("HR版", hrMessage)}>
+                  复制推荐话术
+                </button>
+              </div>
               <span className="save-notice" aria-live="polite">
                 {saveNotice}
               </span>

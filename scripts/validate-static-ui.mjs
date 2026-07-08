@@ -41,52 +41,52 @@ const requiredText = [
   "生成投递方案",
   "清空内容",
   "保存到投递记录",
+  "个人筛选偏好",
+  "目标城市",
+  "可接受工作模式",
   "期望薪资",
-  "可接受底线",
+  "可接受底线薪资",
   "面议",
-  "工作城市",
   "杭州",
   "上海",
   "深圳",
   "广州",
   "远程",
-  "工作模式",
   "到岗",
   "混合办公",
   "不确定",
-  "岗位方向",
   "AI运营",
-  "Agent运营",
-  "AI产品运营",
-  "用户增长",
-  "用户运营",
-  "内容运营",
-  "私域运营",
-  "会员运营",
-  "岗位类型",
-  "纯执行岗",
-  "高级执行岗",
-  "策略执行结合岗",
-  "项目负责人岗",
-  "管理岗",
-  "工作强度风险",
-  "正常",
-  "偏忙",
-  "高压",
-  "明显996风险",
   "输入信息",
   "粘贴岗位 JD，选择投递场景，生成可直接复制的话术。",
   "生成结果",
   "优先展示可复制话术，其它分析作为辅助信息。",
   "当前岗位摘要",
   "某 AI 公司｜AI 运营｜Boss直聘｜HR｜建议优先级 A",
-  "岗位判断卡",
+  "岗位筛选判断",
   "投递优先级",
-  "是否适合我",
-  "是否偏纯执行",
-  "是否值得定制话术",
+  "是否建议投递",
+  "岗位类型判断",
+  "纯执行岗",
+  "高级执行岗",
+  "策略执行结合岗",
+  "项目负责人岗",
+  "管理岗",
+  "纯执行风险",
+  "低",
+  "中",
+  "高",
+  "工作强度风险",
+  "正常",
+  "偏忙",
+  "高压",
+  "明显996风险",
+  "薪资城市适配",
+  "符合",
+  "待确认",
+  "不符合",
   "个性化判断理由",
   "风险提醒",
+  "需要确认岗位是否有实际项目 owner 权限，避免责任大于资源",
   "打招呼话术",
   "推荐",
   "补充要求",
@@ -142,18 +142,24 @@ function assertOrder(content, first, second, label) {
 const inputWorkspace = page.slice(page.indexOf("<section className=\"workbench-panel input-workbench\""));
 const outputWorkspace = page.slice(page.indexOf("<section className=\"workbench-panel output-workbench\""));
 
+assert(
+  !inputWorkspace.includes("<h3 className=\"module-title\">岗位类型</h3>"),
+  "input workbench should not ask users to manually choose 岗位类型",
+);
+assert(
+  !inputWorkspace.includes("<h3 className=\"module-title\">工作强度风险</h3>"),
+  "input workbench should not ask users to manually choose 工作强度风险",
+);
+
 assertOrder(inputWorkspace, "岗位 JD", "基础信息", "input workbench order");
 assertOrder(inputWorkspace, "基础信息", "投递平台", "input workbench order");
-assertOrder(inputWorkspace, "投递平台", "薪资区间", "input workbench order");
-assertOrder(inputWorkspace, "薪资区间", "工作城市", "input workbench order");
-assertOrder(inputWorkspace, "工作城市", "工作模式", "input workbench order");
-assertOrder(inputWorkspace, "工作模式", "岗位方向", "input workbench order");
-assertOrder(inputWorkspace, "岗位方向", "岗位类型", "input workbench order");
-assertOrder(inputWorkspace, "岗位类型", "工作强度风险", "input workbench order");
+assertOrder(inputWorkspace, "投递平台", "投递对象", "input workbench order");
+assertOrder(inputWorkspace, "投递对象", "强调方向", "input workbench order");
 assertOrder(inputWorkspace, "强调方向", "当前使用：投递版简历", "input workbench order");
-assertOrder(inputWorkspace, "当前使用：投递版简历", "生成投递方案", "input workbench order");
-assertOrder(outputWorkspace, "当前岗位摘要", "岗位判断卡", "output workbench order");
-assertOrder(outputWorkspace, "岗位判断卡", "打招呼话术", "output workbench order");
+assertOrder(inputWorkspace, "当前使用：投递版简历", "个人筛选偏好", "input workbench order");
+assertOrder(inputWorkspace, "个人筛选偏好", "生成投递方案", "input workbench order");
+assertOrder(outputWorkspace, "当前岗位摘要", "岗位筛选判断", "output workbench order");
+assertOrder(outputWorkspace, "岗位筛选判断", "打招呼话术", "output workbench order");
 assertOrder(outputWorkspace, "打招呼话术", "补充要求", "output workbench order");
 assertOrder(outputWorkspace, "补充要求", "更多分析", "output workbench order");
 
@@ -198,6 +204,18 @@ assert(
   "app/globals.css should make panel bodies flex to fill the fixed panel height",
 );
 assert(
+  css.includes("height: 76px"),
+  "app/globals.css should keep panel footers at an identical fixed height",
+);
+assert(
+  css.includes("align-items: center"),
+  "app/globals.css should vertically center the fixed footer button rows",
+);
+assert(
+  css.includes("grid-template-columns: 1fr 120px"),
+  "app/globals.css should use identical 1fr 120px footer button columns",
+);
+assert(
   css.includes("overflow-y: auto"),
   "app/globals.css should allow internal scrolling inside panel bodies or tab content",
 );
@@ -214,9 +232,6 @@ for (const storageTerm of [
   "salaryNegotiable",
   "selectedCity",
   "selectedWorkMode",
-  "selectedJobDirection",
-  "selectedJobType",
-  "selectedWorkloadRisk",
   "updateRecordStatus",
   "updateRecordNotes",
   "deleteRecord",
@@ -232,6 +247,10 @@ const forbiddenUiText = [
   "话术长度：约 100 字",
   "全部话术版本",
   "重新生成局部话术",
+  "是否适合我",
+  "是否偏纯执行",
+  "是否值得定制话术",
+  "岗位判断卡",
 ];
 
 for (const text of forbiddenUiText) {

@@ -190,10 +190,10 @@ a {
 }
 
 .panel-footer {
-  min-height: 76px;
+  position: relative;
+  height: 76px;
   display: grid;
-  align-content: center;
-  gap: 8px;
+  align-items: center;
   padding: 16px 26px;
   border-top: 1px solid var(--border);
   background: var(--surface-soft);
@@ -342,13 +342,15 @@ a {
   accent-color: var(--accent);
 }
 
-.resume-collapse {
+.resume-collapse,
+.preference-collapse {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface-soft);
 }
 
-.resume-collapse summary {
+.resume-collapse summary,
+.preference-collapse summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -361,7 +363,8 @@ a {
   list-style: none;
 }
 
-.resume-collapse summary::-webkit-details-marker {
+.resume-collapse summary::-webkit-details-marker,
+.preference-collapse summary::-webkit-details-marker {
   display: none;
 }
 
@@ -377,19 +380,26 @@ a {
   font-weight: 700;
 }
 
-.resume-collapse[open] {
+.resume-collapse[open],
+.preference-collapse[open] {
   padding: 0 12px 12px;
   background: var(--surface);
 }
 
-.resume-collapse[open] summary {
+.resume-collapse[open] summary,
+.preference-collapse[open] summary {
   padding-right: 0;
   padding-left: 0;
 }
 
+.preference-content {
+  display: grid;
+  gap: 18px;
+}
+
 .button-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 1fr 120px;
   gap: 12px;
 }
 
@@ -440,11 +450,17 @@ a {
 }
 
 .save-notice {
-  min-height: 16px;
+  position: absolute;
+  right: 26px;
+  bottom: 3px;
+  left: 26px;
+  min-height: 14px;
   color: #1d4ed8;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.2;
   text-align: center;
+  pointer-events: none;
 }
 
 .summary-strip {
@@ -491,7 +507,7 @@ a {
 
 .judgement-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -513,7 +529,7 @@ a {
 
 .judgement-grid strong {
   color: #111827;
-  font-size: 18px;
+  font-size: 15px;
   line-height: 1.2;
 }
 
@@ -535,6 +551,33 @@ a {
   color: #374151;
   font-size: 13px;
   line-height: 1.58;
+}
+
+.judgement-reasons {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.judgement-reasons li {
+  position: relative;
+  padding-left: 16px;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.judgement-reasons li::before {
+  position: absolute;
+  top: 0.72em;
+  left: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  content: "";
 }
 
 .section-row {
