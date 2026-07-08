@@ -41,12 +41,52 @@ const requiredText = [
   "生成投递方案",
   "清空内容",
   "保存到投递记录",
+  "期望薪资",
+  "可接受底线",
+  "面议",
+  "工作城市",
+  "杭州",
+  "上海",
+  "深圳",
+  "广州",
+  "远程",
+  "工作模式",
+  "到岗",
+  "混合办公",
+  "不确定",
+  "岗位方向",
+  "AI运营",
+  "Agent运营",
+  "AI产品运营",
+  "用户增长",
+  "用户运营",
+  "内容运营",
+  "私域运营",
+  "会员运营",
+  "岗位类型",
+  "纯执行岗",
+  "高级执行岗",
+  "策略执行结合岗",
+  "项目负责人岗",
+  "管理岗",
+  "工作强度风险",
+  "正常",
+  "偏忙",
+  "高压",
+  "明显996风险",
   "输入信息",
   "粘贴岗位 JD，选择投递场景，生成可直接复制的话术。",
   "生成结果",
   "优先展示可复制话术，其它分析作为辅助信息。",
   "当前岗位摘要",
   "某 AI 公司｜AI 运营｜Boss直聘｜HR｜建议优先级 A",
+  "岗位判断卡",
+  "投递优先级",
+  "是否适合我",
+  "是否偏纯执行",
+  "是否值得定制话术",
+  "个性化判断理由",
+  "风险提醒",
   "打招呼话术",
   "推荐",
   "补充要求",
@@ -104,9 +144,16 @@ const outputWorkspace = page.slice(page.indexOf("<section className=\"workbench-
 
 assertOrder(inputWorkspace, "岗位 JD", "基础信息", "input workbench order");
 assertOrder(inputWorkspace, "基础信息", "投递平台", "input workbench order");
+assertOrder(inputWorkspace, "投递平台", "薪资区间", "input workbench order");
+assertOrder(inputWorkspace, "薪资区间", "工作城市", "input workbench order");
+assertOrder(inputWorkspace, "工作城市", "工作模式", "input workbench order");
+assertOrder(inputWorkspace, "工作模式", "岗位方向", "input workbench order");
+assertOrder(inputWorkspace, "岗位方向", "岗位类型", "input workbench order");
+assertOrder(inputWorkspace, "岗位类型", "工作强度风险", "input workbench order");
 assertOrder(inputWorkspace, "强调方向", "当前使用：投递版简历", "input workbench order");
 assertOrder(inputWorkspace, "当前使用：投递版简历", "生成投递方案", "input workbench order");
-assertOrder(outputWorkspace, "当前岗位摘要", "打招呼话术", "output workbench order");
+assertOrder(outputWorkspace, "当前岗位摘要", "岗位判断卡", "output workbench order");
+assertOrder(outputWorkspace, "岗位判断卡", "打招呼话术", "output workbench order");
 assertOrder(outputWorkspace, "打招呼话术", "补充要求", "output workbench order");
 assertOrder(outputWorkspace, "补充要求", "更多分析", "output workbench order");
 
@@ -163,6 +210,13 @@ for (const storageTerm of [
   "APPLICATION_RECORDS_KEY",
   "localStorage",
   "saveCurrentApplication",
+  "jobFitJudgement",
+  "salaryNegotiable",
+  "selectedCity",
+  "selectedWorkMode",
+  "selectedJobDirection",
+  "selectedJobType",
+  "selectedWorkloadRisk",
   "updateRecordStatus",
   "updateRecordNotes",
   "deleteRecord",
