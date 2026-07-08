@@ -71,11 +71,34 @@ npm run test
 
 运行静态 UI 约束检查。
 
+## GitHub Actions 部署
+
+项目已配置 GitHub Actions + GitHub Pages。
+
+推送到 `main` 分支后，GitHub Actions 会自动：
+
+1. 安装依赖
+2. 运行静态 UI 检查
+3. 构建 Next.js 静态站点
+4. 发布到 GitHub Pages
+
+首次使用前，需要在 GitHub 仓库中确认：
+
+1. 进入 `Settings`
+2. 进入 `Pages`
+3. 在 `Build and deployment` 中将 `Source` 设为 `GitHub Actions`
+
+部署成功后，页面地址通常是：
+
+```text
+https://vitalu1107-beep.github.io/ai-apply-assistant/
+```
+
 ## 重要说明
 
-这个项目目前只是前端效果页，不等于已经发布到公网。
+这个项目目前只是前端效果页。
 
-推送到 GitHub 只是把代码备份和托管到仓库里。如果想让别人通过一个网址访问页面，还需要后续部署到 Vercel、Netlify 或其他前端托管平台。
+GitHub 仓库用于托管代码，GitHub Actions + GitHub Pages 用于把静态页面发布成可访问的网址。
 
 ## 项目定位
 
