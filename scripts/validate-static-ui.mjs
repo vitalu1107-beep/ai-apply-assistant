@@ -38,6 +38,7 @@ const requiredText = [
   "未接 API",
   "工作台",
   "投递记录",
+  "高频投递前的岗位筛选、话术生成与轻量记录工作台",
   "生成投递方案",
   "清空内容",
   "保存到投递记录",
@@ -59,7 +60,8 @@ const requiredText = [
   "输入信息",
   "粘贴岗位 JD，选择投递场景，生成可直接复制的话术。",
   "生成结果",
-  "优先展示可复制话术，其它分析作为辅助信息。",
+  "优先展示岗位判断和可复制话术，其它分析作为辅助信息。",
+  "投递设置",
   "当前岗位摘要",
   "某 AI 公司｜AI 运营｜Boss直聘｜HR｜建议优先级 A",
   "岗位筛选判断",
@@ -104,7 +106,7 @@ const requiredText = [
   "老板/创始人",
   "当前使用：投递版简历",
   "总投递数",
-  "已回复数",
+  "已回复",
   "回复率",
   "待跟进数",
   "已约面数",
@@ -118,9 +120,10 @@ const requiredText = [
   "放弃",
   "当前状态",
   "投递日期",
-  "下次跟进日期",
+  "下次跟进",
   "岗位链接",
   "备注",
+  "操作",
   "删除",
 ];
 
@@ -155,9 +158,9 @@ assertOrder(inputWorkspace, "岗位 JD", "基础信息", "input workbench order"
 assertOrder(inputWorkspace, "基础信息", "投递平台", "input workbench order");
 assertOrder(inputWorkspace, "投递平台", "投递对象", "input workbench order");
 assertOrder(inputWorkspace, "投递对象", "强调方向", "input workbench order");
-assertOrder(inputWorkspace, "强调方向", "当前使用：投递版简历", "input workbench order");
-assertOrder(inputWorkspace, "当前使用：投递版简历", "个人筛选偏好", "input workbench order");
-assertOrder(inputWorkspace, "个人筛选偏好", "生成投递方案", "input workbench order");
+assertOrder(inputWorkspace, "强调方向", "个人筛选偏好", "input workbench order");
+assertOrder(inputWorkspace, "个人筛选偏好", "当前使用：投递版简历", "input workbench order");
+assertOrder(inputWorkspace, "当前使用：投递版简历", "生成投递方案", "input workbench order");
 assertOrder(outputWorkspace, "当前岗位摘要", "岗位筛选判断", "output workbench order");
 assertOrder(outputWorkspace, "岗位筛选判断", "打招呼话术", "output workbench order");
 assertOrder(outputWorkspace, "打招呼话术", "补充要求", "output workbench order");
@@ -216,6 +219,18 @@ assert(
   "app/globals.css should use identical 1fr 120px footer button columns",
 );
 assert(
+  css.includes("--accent: #059669"),
+  "app/globals.css should use green as the primary color",
+);
+assert(
+  css.includes("--accent-soft: #ecfdf5"),
+  "app/globals.css should use a light green selected background",
+);
+assert(
+  css.includes("records-table"),
+  "app/globals.css should style the records page as a lightweight table",
+);
+assert(
   css.includes("overflow-y: auto"),
   "app/globals.css should allow internal scrolling inside panel bodies or tab content",
 );
@@ -255,6 +270,19 @@ const forbiddenUiText = [
 
 for (const text of forbiddenUiText) {
   assert(!page.includes(text), `app/page.tsx should not include "${text}"`);
+}
+
+const forbiddenBlueColors = [
+  "#2563eb",
+  "#1d4ed8",
+  "#eff6ff",
+  "#eef2ff",
+  "#3730a3",
+  "rgba(37, 99, 235",
+];
+
+for (const color of forbiddenBlueColors) {
+  assert(!css.includes(color), `app/globals.css should not use old blue color ${color}`);
 }
 
 const expectedMessageTitles = ["HR版", "猎头版", "业务主管版", "老板/创始人版"];

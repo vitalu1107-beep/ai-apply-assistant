@@ -1,7 +1,7 @@
 "use client";
 
 import { Clipboard, FileText, Link2, Save, Send, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 const APPLICATION_RECORDS_KEY = "ai-apply-assistant:application-records";
 
@@ -41,21 +41,25 @@ const messages = [
   {
     title: "HR版",
     recommended: true,
+    scenario: "适合 Boss 直聘第一句话，表达匹配点和沟通意愿。",
     text: hrMessage,
   },
   {
     title: "猎头版",
     recommended: false,
+    scenario: "适合让猎头快速判断方向、经历和岗位匹配度。",
     text: "你好，我目前重点关注 AI 运营、用户增长和运营提效方向。我的经历里有社区团购、私域转化和数据复盘，同时在做 AI Agent 项目实践，如果这个岗位重视业务理解和工具落地，我觉得匹配度较高。",
   },
   {
     title: "业务主管版",
     recommended: false,
+    scenario: "适合和用人团队沟通业务理解、增长经验和工具落地。",
     text: "你好，我对这个 AI 运营岗位很感兴趣。我比较擅长从业务流程里找增长和提效空间，也有用户增长、私域运营、数据复盘经验，最近在搭建 AI Agent 项目，希望能把 AI 工具真正用到运营场景里。",
   },
   {
     title: "老板/创始人版",
     recommended: false,
+    scenario: "适合小团队或创始人直招，突出业务结果和主动性。",
     text: "你好，我关注到贵司正在招聘 AI 运营。我过往做过用户增长、私域运营和项目推进，也在实践 AI Agent，希望能从业务需求出发，用 AI 提升运营效率和转化效果，期待有机会聊聊。",
   },
 ];
@@ -239,7 +243,7 @@ export default function Home() {
     const jobType: JobTypeJudgement = hasExecutionSignal
       ? "纯执行岗"
       : hasGrowthSignal
-        ? "策略执行结合岗"
+        ? "项目负责人岗"
         : "高级执行岗";
     const executionRisk: ExecutionRisk = hasExecutionSignal ? "高" : hasGrowthSignal ? "低" : "中";
     const workloadRisk: WorkloadRisk = hasRiskSignal
@@ -248,7 +252,9 @@ export default function Home() {
         : "高压"
       : "正常";
     const salaryCityFit: SalaryCityFit =
-      selectedCity === "其他" && selectedWorkMode === "到岗" && !salaryNegotiable
+      !expectedSalary.trim() && !minimumSalary.trim() && !salaryNegotiable
+        ? "待确认"
+        : selectedCity === "其他" && selectedWorkMode === "到岗" && !salaryNegotiable
         ? "待确认"
         : "符合";
     const reasons = hasExecutionSignal
@@ -273,7 +279,39 @@ export default function Home() {
       reasons,
       risk: "需要确认岗位是否有实际项目 owner 权限，避免责任大于资源",
     };
-  }, [jdText, salaryNegotiable, selectedCity, selectedFocus, selectedWorkMode]);
+  }, [expectedSalary, jdText, minimumSalary, salaryNegotiable, selectedCity, selectedFocus, selectedWorkMode]);
+
+  function getJudgementTone(value: string) {
+    if (["A", "建议投递", "低", "正常", "符合"].includes(value)) {
+      return "is-positive";
+    }
+
+    if (["C", "谨慎投递", "中", "偏忙", "待确认"].includes(value)) {
+      return "is-warning";
+    }
+
+    if (["不建议投递", "高", "高压", "明显996风险", "不符合"].includes(value)) {
+      return "is-danger";
+    }
+
+    return "is-neutral";
+  }
+
+  function getStatusTone(status: ApplicationStatus) {
+    if (["已回复", "已约面"].includes(status)) {
+      return "is-positive";
+    }
+
+    if (status === "待跟进") {
+      return "is-warning";
+    }
+
+    if (status === "已拒绝") {
+      return "is-danger";
+    }
+
+    return status === "放弃" ? "is-muted" : "is-neutral";
+  }
 
   function toggleFocus(option: string) {
     setSelectedFocus((current) =>
@@ -401,7 +439,7 @@ export default function Home() {
       <header className="app-header">
         <div className="brand-block">
           <h1 className="app-title">AI 智能投递助手</h1>
-          <p className="app-subtitle">高频投递前的生成、复制与轻量记录工作台</p>
+          <p className="app-subtitle">高频投递前的岗位筛选、话术生成与轻量记录工作台</p>
         </div>
         <div className="status-group" aria-label="当前原型状态">
           <span className="status-pill">UI 原型</span>
@@ -481,36 +519,38 @@ export default function Home() {
               </section>
 
               <section className="module-block">
-                <h3 className="module-title">投递平台</h3>
-                <div className="chip-list" aria-label="投递平台选择">
-                  {platforms.map((platform) => (
-                    <button
-                      className={`chip ${selectedPlatform === platform ? "is-selected" : ""}`}
-                      key={platform}
-                      onClick={() => setSelectedPlatform(platform)}
-                      type="button"
-                      aria-pressed={selectedPlatform === platform}
-                    >
-                      {platform}
-                    </button>
-                  ))}
+                <h3 className="module-title">投递设置</h3>
+                <div className="setting-group">
+                  <span className="field-label">投递平台</span>
+                  <div className="chip-list" aria-label="投递平台选择">
+                    {platforms.map((platform) => (
+                      <button
+                        className={`chip ${selectedPlatform === platform ? "is-selected" : ""}`}
+                        key={platform}
+                        onClick={() => setSelectedPlatform(platform)}
+                        type="button"
+                        aria-pressed={selectedPlatform === platform}
+                      >
+                        {platform}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </section>
-
-              <section className="module-block">
-                <h3 className="module-title">投递对象</h3>
-                <div className="chip-list" aria-label="投递对象选择">
-                  {targets.map((target) => (
-                    <button
-                      className={`chip ${selectedTarget === target ? "is-selected" : ""}`}
-                      key={target}
-                      onClick={() => setSelectedTarget(target)}
-                      type="button"
-                      aria-pressed={selectedTarget === target}
-                    >
-                      {target}
-                    </button>
-                  ))}
+                <div className="setting-group">
+                  <span className="field-label">投递对象</span>
+                  <div className="chip-list" aria-label="投递对象选择">
+                    {targets.map((target) => (
+                      <button
+                        className={`chip ${selectedTarget === target ? "is-selected" : ""}`}
+                        key={target}
+                        onClick={() => setSelectedTarget(target)}
+                        type="button"
+                        aria-pressed={selectedTarget === target}
+                      >
+                        {target}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </section>
 
@@ -530,22 +570,6 @@ export default function Home() {
                   ))}
                 </div>
               </section>
-
-              <details className="resume-collapse module-block">
-                <summary>
-                  <span>
-                    <FileText size={15} aria-hidden="true" />
-                    当前使用：投递版简历
-                  </span>
-                  <span className="summary-action">展开编辑</span>
-                </summary>
-                <textarea
-                  className="text-area resume-area"
-                  value={resumeText}
-                  onChange={(event) => setResumeText(event.target.value)}
-                  placeholder="粘贴你的简历文本，建议使用投递版简历内容。"
-                />
-              </details>
 
               <details className="preference-collapse module-block">
                 <summary>
@@ -621,6 +645,22 @@ export default function Home() {
                   </section>
                 </div>
               </details>
+
+              <details className="resume-collapse module-block">
+                <summary>
+                  <span>
+                    <FileText size={15} aria-hidden="true" />
+                    当前使用：投递版简历
+                  </span>
+                  <span className="summary-action">展开编辑</span>
+                </summary>
+                <textarea
+                  className="text-area resume-area"
+                  value={resumeText}
+                  onChange={(event) => setResumeText(event.target.value)}
+                  placeholder="粘贴你的简历文本，建议使用投递版简历内容。"
+                />
+              </details>
             </div>
 
             <div className="panel-footer">
@@ -641,7 +681,7 @@ export default function Home() {
             <div className="panel-header">
               <div className="panel-heading">
                 <h2>生成结果</h2>
-                <p>优先展示可复制话术，其它分析作为辅助信息。</p>
+                <p>优先展示岗位判断和可复制话术，其它分析作为辅助信息。</p>
               </div>
             </div>
 
@@ -659,27 +699,37 @@ export default function Home() {
                 <div className="judgement-grid">
                   <div>
                     <span>投递优先级</span>
-                    <strong>{jobFitJudgement.priority}</strong>
+                    <strong className={`judgement-pill ${getJudgementTone(jobFitJudgement.priority)}`}>
+                      {jobFitJudgement.priority}
+                    </strong>
                   </div>
                   <div>
                     <span>是否建议投递</span>
-                    <strong>{jobFitJudgement.recommendation}</strong>
+                    <strong className={`judgement-pill ${getJudgementTone(jobFitJudgement.recommendation)}`}>
+                      {jobFitJudgement.recommendation}
+                    </strong>
                   </div>
                   <div>
                     <span>岗位类型判断</span>
-                    <strong>{jobFitJudgement.jobType}</strong>
+                    <strong className="judgement-pill is-neutral">{jobFitJudgement.jobType}</strong>
                   </div>
                   <div>
                     <span>纯执行风险</span>
-                    <strong>{jobFitJudgement.executionRisk}</strong>
+                    <strong className={`judgement-pill ${getJudgementTone(jobFitJudgement.executionRisk)}`}>
+                      {jobFitJudgement.executionRisk}
+                    </strong>
                   </div>
                   <div>
                     <span>工作强度风险</span>
-                    <strong>{jobFitJudgement.workloadRisk}</strong>
+                    <strong className={`judgement-pill ${getJudgementTone(jobFitJudgement.workloadRisk)}`}>
+                      {jobFitJudgement.workloadRisk}
+                    </strong>
                   </div>
                   <div>
                     <span>薪资城市适配</span>
-                    <strong>{jobFitJudgement.salaryCityFit}</strong>
+                    <strong className={`judgement-pill ${getJudgementTone(jobFitJudgement.salaryCityFit)}`}>
+                      {jobFitJudgement.salaryCityFit}
+                    </strong>
                   </div>
                 </div>
                 <div className="judgement-note">
@@ -728,6 +778,7 @@ export default function Home() {
                           {copiedTitle === message.title ? "已复制" : "复制"}
                         </button>
                       </div>
+                      <span className="message-scenario">{message.scenario}</span>
                       <p>{message.text}</p>
                     </article>
                   ))}
@@ -855,7 +906,7 @@ export default function Home() {
           <div className="records-header">
             <div>
               <h2>投递记录</h2>
-              <p>记录已投递岗位、回复情况和下次跟进动作，只保留高频投递需要的信息。</p>
+              <p>轻量追踪已投递岗位、回复情况和下次跟进动作。</p>
             </div>
             <button className="secondary-button" type="button" onClick={() => setActiveView("workbench")}>
               回到工作台
@@ -868,7 +919,7 @@ export default function Home() {
               <strong>{stats.total}</strong>
             </article>
             <article className="stat-card">
-              <span>已回复数</span>
+              <span>已回复</span>
               <strong>{stats.replied}</strong>
             </article>
             <article className="stat-card">
@@ -916,75 +967,87 @@ export default function Home() {
                 </button>
               </div>
             ) : (
-              visibleRecords.map((record) => (
-                <article className="record-card" key={record.id}>
-                  <div className="record-main">
-                    <div>
-                      <h3>{record.companyName}</h3>
-                      <p>{record.jobTitle}</p>
-                    </div>
-                    <label className="select-field">
-                      <span>当前状态</span>
-                      <select
-                        value={record.status}
-                        onChange={(event) =>
-                          updateRecordStatus(record.id, event.target.value as ApplicationStatus)
-                        }
-                      >
-                        {statusOptions.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-
-                  <div className="record-meta-grid">
-                    <span>投递平台：{record.platform}</span>
-                    <span>投递对象：{record.recipient}</span>
-                    <span>推荐话术：{record.recommendedScriptType}</span>
-                    <span>岗位方向：{record.jobDirection || "AI运营"}</span>
-                    <span>岗位类型：{record.jobType || "策略执行结合岗"}</span>
-                    <span>强度风险：{record.workloadRisk || "正常"}</span>
-                    <span>工作城市：{record.city || "杭州"}</span>
-                    <span>工作模式：{record.workMode || "混合办公"}</span>
-                    <span>
-                      薪资区间：
-                      {record.salaryNegotiable
-                        ? "面议"
-                        : `${record.expectedSalary || "未填"} / 底线 ${record.minimumSalary || "未填"}`}
-                    </span>
-                    <span>投递日期：{record.appliedAt}</span>
-                    <span>下次跟进日期：{record.nextFollowUpAt}</span>
-                    <span>强调方向：{record.focusAreas.join("、")}</span>
-                  </div>
-
-                  <div className="record-link-row">
-                    <Link2 size={14} aria-hidden="true" />
-                    <a href={record.jobLink} target="_blank" rel="noreferrer">
-                      岗位链接
-                    </a>
-                  </div>
-
-                  <label className="field">
-                    <span className="field-label">备注</span>
-                    <textarea
-                      className="text-area notes-area"
-                      value={record.notes}
-                      onChange={(event) => updateRecordNotes(record.id, event.target.value)}
-                      placeholder="记录回复情况、沟通要点或下次跟进计划。"
-                    />
-                  </label>
-
-                  <div className="record-actions">
-                    <button className="secondary-button danger-button" type="button" onClick={() => deleteRecord(record.id)}>
-                      <Trash2 size={15} aria-hidden="true" />
-                      删除
-                    </button>
-                  </div>
-                </article>
-              ))
+              <div className="records-table-wrap">
+                <table className="records-table">
+                  <thead>
+                    <tr>
+                      <th>公司</th>
+                      <th>岗位</th>
+                      <th>平台</th>
+                      <th>状态</th>
+                      <th>投递日期</th>
+                      <th>下次跟进</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRecords.map((record) => (
+                      <Fragment key={record.id}>
+                        <tr>
+                          <td>
+                            <strong>{record.companyName}</strong>
+                            <span>{record.recipient}</span>
+                          </td>
+                          <td>
+                            <strong>{record.jobTitle}</strong>
+                            <span>{record.focusAreas.slice(0, 2).join("、")}</span>
+                          </td>
+                          <td>{record.platform}</td>
+                          <td>
+                            <select
+                              className={`status-select ${getStatusTone(record.status)}`}
+                              value={record.status}
+                              onChange={(event) =>
+                                updateRecordStatus(record.id, event.target.value as ApplicationStatus)
+                              }
+                              aria-label="当前状态"
+                            >
+                              {statusOptions.map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>{record.appliedAt}</td>
+                          <td>{record.nextFollowUpAt}</td>
+                          <td>
+                            <div className="table-actions">
+                              <a className="table-link" href={record.jobLink} target="_blank" rel="noreferrer">
+                                <Link2 size={14} aria-hidden="true" />
+                                岗位链接
+                              </a>
+                              <button
+                                className="icon-action danger-button"
+                                type="button"
+                                onClick={() => deleteRecord(record.id)}
+                              >
+                                <Trash2 size={15} aria-hidden="true" />
+                                删除
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr className="record-notes-row">
+                          <td colSpan={7}>
+                            <div className="record-note-line">
+                              <span>
+                                {record.jobType || "项目负责人岗"} · {record.workloadRisk || "正常"} ·{" "}
+                                {record.city || "杭州"} · {record.workMode || "混合办公"}
+                              </span>
+                              <input
+                                value={record.notes}
+                                onChange={(event) => updateRecordNotes(record.id, event.target.value)}
+                                placeholder="备注：记录回复情况、沟通要点或下次跟进计划。"
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         </section>
