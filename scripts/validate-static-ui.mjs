@@ -4,7 +4,6 @@ import { join } from "node:path";
 const root = process.cwd();
 const pagePath = join(root, "app", "page.tsx");
 const forbiddenPaths = [
-  join(root, "app", "api"),
   join(root, "pages", "api"),
   join(root, ".env.local"),
 ];
@@ -32,6 +31,13 @@ assert(existsSync(pagePath), "app/page.tsx should exist");
 const page = readFileSync(pagePath, "utf8");
 const cssPath = join(root, "app", "globals.css");
 const css = existsSync(cssPath) ? readFileSync(cssPath, "utf8") : "";
+const mockPath = join(root, "lib", "mockGenerateResult.ts");
+const typePath = join(root, "types", "generate.ts");
+const generatedSource = [
+  page,
+  existsSync(mockPath) ? readFileSync(mockPath, "utf8") : "",
+  existsSync(typePath) ? readFileSync(typePath, "utf8") : "",
+].join("\n");
 const requiredText = [
   "AI 智能投递助手",
   "UI 原型",
@@ -128,7 +134,7 @@ const requiredText = [
 ];
 
 for (const text of requiredText) {
-  assert(page.includes(text), `app/page.tsx should include "${text}"`);
+  assert(generatedSource.includes(text), `generated UI source should include "${text}"`);
 }
 
 function assertOrder(content, first, second, label) {
@@ -243,7 +249,9 @@ for (const storageTerm of [
   "APPLICATION_RECORDS_KEY",
   "localStorage",
   "saveCurrentApplication",
-  "jobFitJudgement",
+  "generatedResult",
+  "generateApplicationPlan",
+  "displayResult",
   "salaryNegotiable",
   "selectedCity",
   "selectedWorkMode",
@@ -302,12 +310,10 @@ const sourceFiles = [
 ].filter((path) => /\.(ts|tsx|js|jsx)$/.test(path));
 
 const forbiddenTerms = [
-  "/api/generate",
   "VOLC",
   "ARK_API",
   "OPENAI_API_KEY",
   "process.env",
-  "fetch(",
   "createClient",
   "database",
 ];

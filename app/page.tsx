@@ -3,22 +3,21 @@
 import { Clipboard, FileText, Link2, Save, Send, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
+import { mockGenerateResult } from "../lib/mockGenerateResult";
+import type {
+  GenerateAnalysis,
+  GenerateRequest,
+  GenerateResult,
+  JobJudgement,
+  OutreachScripts,
+} from "../types/generate";
+
 const APPLICATION_RECORDS_KEY = "ai-apply-assistant:application-records";
 
 const platforms = ["Boss直聘", "猎聘", "拉勾", "其他"];
 const targets = ["HR", "猎头", "业务主管", "老板/创始人"];
 const cityOptions = ["杭州", "上海", "深圳", "广州", "远程", "其他"];
 const workModeOptions = ["到岗", "混合办公", "远程", "不确定"];
-const systemJobTypeLabels = [
-  "纯执行岗",
-  "高级执行岗",
-  "策略执行结合岗",
-  "项目负责人岗",
-  "管理岗",
-] as const;
-const executionRiskLabels = ["低", "中", "高"] as const;
-const workloadRiskLabels = ["正常", "偏忙", "高压", "明显996风险"] as const;
-const salaryCityFitLabels = ["符合", "待确认", "不符合"] as const;
 const focusOptions = [
   "AI运营能力",
   "用户增长经验",
@@ -34,64 +33,10 @@ const defaultFocus = ["AI运营能力", "用户增长经验", "Agent项目经验
 const statusOptions = ["已投递", "已回复", "待跟进", "已约面", "已拒绝", "放弃"] as const;
 const filterOptions = ["全部", ...statusOptions] as const;
 
-const hrMessage =
-  "你好，我关注到这个 AI 运营岗位，岗位中提到用户增长、AI工具和运营提效，这和我过往的用户增长、私域运营经验，以及正在搭建的 AI Agent 项目比较匹配。想进一步沟通这个机会。";
-
-const messages = [
-  {
-    title: "HR版",
-    recommended: true,
-    scenario: "适合 Boss 直聘第一句话，表达匹配点和沟通意愿。",
-    text: hrMessage,
-  },
-  {
-    title: "猎头版",
-    recommended: false,
-    scenario: "适合让猎头快速判断方向、经历和岗位匹配度。",
-    text: "你好，我目前重点关注 AI 运营、用户增长和运营提效方向。我的经历里有社区团购、私域转化和数据复盘，同时在做 AI Agent 项目实践，如果这个岗位重视业务理解和工具落地，我觉得匹配度较高。",
-  },
-  {
-    title: "业务主管版",
-    recommended: false,
-    scenario: "适合和用人团队沟通业务理解、增长经验和工具落地。",
-    text: "你好，我对这个 AI 运营岗位很感兴趣。我比较擅长从业务流程里找增长和提效空间，也有用户增长、私域运营、数据复盘经验，最近在搭建 AI Agent 项目，希望能把 AI 工具真正用到运营场景里。",
-  },
-  {
-    title: "老板/创始人版",
-    recommended: false,
-    scenario: "适合小团队或创始人直招，突出业务结果和主动性。",
-    text: "你好，我关注到贵司正在招聘 AI 运营。我过往做过用户增长、私域运营和项目推进，也在实践 AI Agent，希望能从业务需求出发，用 AI 提升运营效率和转化效果，期待有机会聊聊。",
-  },
-];
-
-const matchPoints = [
-  "有用户增长和社区团购运营经验",
-  "有私域运营和团长运营经验",
-  "正在搭建 AI Agent 项目",
-];
-
-const resumeTips = [
-  "将 AI Agent 项目放到个人优势或项目经历中",
-  "强化用户增长、私域转化、数据复盘关键词",
-  "对目标岗位补充更贴近 JD 的一句个人定位",
-];
-
-const interviewQuestions = [
-  "你为什么想转向 AI 运营？",
-  "你做过哪些用户增长项目？",
-  "你如何理解 AI Agent 在运营场景中的价值？",
-  "你如何判断一个岗位和自己是否匹配？",
-  "如果让你设计一个运营提效工具，你会怎么做？",
-];
-
 type AnalysisTab = "match" | "resume" | "interview";
 type ViewTab = "workbench" | "records";
 type ApplicationStatus = (typeof statusOptions)[number];
 type ApplicationFilter = (typeof filterOptions)[number];
-type JobTypeJudgement = (typeof systemJobTypeLabels)[number];
-type ExecutionRisk = (typeof executionRiskLabels)[number];
-type WorkloadRisk = (typeof workloadRiskLabels)[number];
-type SalaryCityFit = (typeof salaryCityFitLabels)[number];
 
 type ApplicationRecord = {
   id: string;
@@ -110,6 +55,11 @@ type ApplicationRecord = {
   recipient: string;
   focusAreas: string[];
   recommendedScriptType: string;
+  jobJudgement?: JobJudgement;
+  scripts?: OutreachScripts;
+  analysis?: GenerateAnalysis;
+  resumeSuggestions?: string[];
+  interviewQuestions?: string[];
   status: ApplicationStatus;
   appliedAt: string;
   lastContactAt: string;
@@ -136,6 +86,32 @@ function isApplicationRecord(value: unknown): value is ApplicationRecord {
   return Boolean(record.id && record.companyName && record.jobTitle && record.status);
 }
 
+function isGenerateResult(value: unknown): value is GenerateResult {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const result = value as Partial<GenerateResult>;
+  return Boolean(
+    result.job_judgement?.priority &&
+      result.job_judgement.recommendation &&
+      Array.isArray(result.job_judgement.reasons) &&
+      result.scripts?.recommended &&
+      result.scripts.hr &&
+      result.scripts.headhunter &&
+      result.scripts.manager &&
+      result.scripts.founder &&
+      result.analysis &&
+      Array.isArray(result.analysis.keywords) &&
+      Array.isArray(result.resume_suggestions) &&
+      Array.isArray(result.interview_questions),
+  );
+}
+
+function getRecommendedScriptText(scripts: OutreachScripts) {
+  return scripts[scripts.recommended] || scripts.hr;
+}
+
 export default function Home() {
   const [activeView, setActiveView] = useState<ViewTab>("workbench");
   const [selectedPlatform, setSelectedPlatform] = useState("Boss直聘");
@@ -158,6 +134,9 @@ export default function Home() {
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ApplicationFilter>("全部");
   const [saveNotice, setSaveNotice] = useState("");
+  const [generatedResult, setGeneratedResult] = useState<GenerateResult | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState("");
 
   useEffect(() => {
     try {
@@ -183,10 +162,43 @@ export default function Home() {
     window.localStorage.setItem(APPLICATION_RECORDS_KEY, JSON.stringify(records));
   }, [isStorageReady, records]);
 
-  const allMessageText = useMemo(
-    () => messages.map((message) => `${message.title}\n${message.text}`).join("\n\n"),
-    [],
+  const displayResult = generatedResult ?? mockGenerateResult;
+  const jobJudgement = displayResult.job_judgement;
+  const scriptCards = useMemo(
+    () => [
+      {
+        key: "hr" as const,
+        title: "HR版",
+        scenario: "适合 Boss 直聘第一句话，表达匹配点和沟通意愿。",
+        text: displayResult.scripts.hr,
+      },
+      {
+        key: "headhunter" as const,
+        title: "猎头版",
+        scenario: "适合让猎头快速判断方向、经历和岗位匹配度。",
+        text: displayResult.scripts.headhunter,
+      },
+      {
+        key: "manager" as const,
+        title: "业务主管版",
+        scenario: "适合和用人团队沟通业务理解、增长经验和工具落地。",
+        text: displayResult.scripts.manager,
+      },
+      {
+        key: "founder" as const,
+        title: "老板/创始人版",
+        scenario: "适合小团队或创始人直招，突出业务结果和主动性。",
+        text: displayResult.scripts.founder,
+      },
+    ],
+    [displayResult],
   );
+
+  const allMessageText = useMemo(
+    () => scriptCards.map((message) => `${message.title}\n${message.text}`).join("\n\n"),
+    [scriptCards],
+  );
+  const recommendedScriptText = getRecommendedScriptText(displayResult.scripts);
 
   const visibleRecords = useMemo(
     () =>
@@ -212,74 +224,6 @@ export default function Home() {
       rejected,
     };
   }, [records]);
-
-  const jobFitJudgement = useMemo(() => {
-    const riskSignals = ["强销售", "招商", "电销", "陌拜", "客服", "高压", "996", "KPI压力"];
-    const executionSignals = ["日常维护", "发布内容", "完成上级安排", "基础执行", "社群值守"];
-    const growthSignals = ["AI", "Agent", "增长", "策略", "项目", "数据", "复盘", "提效", "工具"];
-    const hasRiskSignal = riskSignals.some((word) => jdText.includes(word));
-    const hasExecutionSignal = executionSignals.some((word) => jdText.includes(word));
-    const hasGrowthSignal =
-      growthSignals.some((word) => jdText.includes(word)) ||
-      selectedFocus.some((area) =>
-        ["AI运营能力", "用户增长经验", "Agent项目经验", "数据复盘", "项目管理"].includes(area),
-      );
-
-    let priority: "A" | "B" | "C" | "不建议投递" = "B";
-    if (hasRiskSignal && hasExecutionSignal) {
-      priority = "不建议投递";
-    } else if (hasRiskSignal || hasExecutionSignal) {
-      priority = "C";
-    } else if (hasGrowthSignal) {
-      priority = "A";
-    }
-
-    const recommendation =
-      priority === "A" || priority === "B"
-        ? "建议投递"
-        : priority === "C"
-          ? "谨慎投递"
-          : "不建议投递";
-    const jobType: JobTypeJudgement = hasExecutionSignal
-      ? "纯执行岗"
-      : hasGrowthSignal
-        ? "项目负责人岗"
-        : "高级执行岗";
-    const executionRisk: ExecutionRisk = hasExecutionSignal ? "高" : hasGrowthSignal ? "低" : "中";
-    const workloadRisk: WorkloadRisk = hasRiskSignal
-      ? jdText.includes("996")
-        ? "明显996风险"
-        : "高压"
-      : "正常";
-    const salaryCityFit: SalaryCityFit =
-      !expectedSalary.trim() && !minimumSalary.trim() && !salaryNegotiable
-        ? "待确认"
-        : selectedCity === "其他" && selectedWorkMode === "到岗" && !salaryNegotiable
-        ? "待确认"
-        : "符合";
-    const reasons = hasExecutionSignal
-      ? [
-          "岗位方向需要进一步确认，JD 出现基础执行、日常维护或社群值守信号",
-          "如果缺少策略制定、项目推进和 AI 工具落地空间，投递优先级需要下调",
-          "可先用简短话术试探岗位是否包含用户增长和数据复盘职责",
-        ]
-      : [
-          "岗位方向偏 AI 运营和用户增长，符合当前求职方向",
-          "岗位具备项目推进和工具提效空间，不是单纯执行",
-          "可结合过往用户增长、私域运营和 AI Agent 项目进行表达",
-        ];
-
-    return {
-      priority,
-      recommendation,
-      jobType,
-      executionRisk,
-      workloadRisk,
-      salaryCityFit,
-      reasons,
-      risk: "需要确认岗位是否有实际项目 owner 权限，避免责任大于资源",
-    };
-  }, [expectedSalary, jdText, minimumSalary, salaryNegotiable, selectedCity, selectedFocus, selectedWorkMode]);
 
   function getJudgementTone(value: string) {
     if (["A", "建议投递", "低", "正常", "符合"].includes(value)) {
@@ -321,6 +265,64 @@ export default function Home() {
     );
   }
 
+  async function generateApplicationPlan() {
+    if (!jdText.trim()) {
+      setGenerateError("请先粘贴岗位 JD。");
+      return;
+    }
+
+    const payload: GenerateRequest = {
+      jobDescription: jdText,
+      companyName,
+      jobTitle,
+      jobLink,
+      platform: selectedPlatform,
+      recipient: selectedTarget,
+      focusAreas: selectedFocus,
+      personalPreferences: {
+        expectedSalary,
+        minimumSalary,
+        salaryNegotiable,
+        city: selectedCity,
+        workMode: selectedWorkMode,
+      },
+      resumeText,
+    };
+
+    setIsGenerating(true);
+    setGenerateError("");
+    setSaveNotice("");
+
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setGenerateError(data?.error || "生成失败，请稍后重试。");
+        return;
+      }
+
+      if (!isGenerateResult(data)) {
+        setGenerateError("生成结果异常，请重新生成。");
+        return;
+      }
+
+      setGeneratedResult(data);
+      setCopiedTitle("");
+    } catch {
+      setGenerateError("生成失败，请稍后重试。");
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
   function clearForm() {
     setCompanyName("");
     setJobTitle("");
@@ -338,9 +340,17 @@ export default function Home() {
     setSelectedFocus(defaultFocus);
     setCopiedTitle("");
     setSaveNotice("");
+    setGenerateError("");
+    setGeneratedResult(null);
   }
 
   function saveCurrentApplication() {
+    if (!generatedResult) {
+      setSaveNotice("请先生成投递方案。");
+      window.setTimeout(() => setSaveNotice(""), 1800);
+      return;
+    }
+
     const today = formatDate(new Date());
     const record: ApplicationRecord = {
       id: `application-${Date.now()}`,
@@ -353,12 +363,17 @@ export default function Home() {
       city: selectedCity,
       workMode: selectedWorkMode,
       jobDirection: "AI运营",
-      jobType: jobFitJudgement.jobType,
-      workloadRisk: jobFitJudgement.workloadRisk,
+      jobType: generatedResult.job_judgement.job_type,
+      workloadRisk: generatedResult.job_judgement.workload_risk,
       platform: selectedPlatform,
       recipient: selectedTarget,
       focusAreas: selectedFocus,
       recommendedScriptType: "HR版",
+      jobJudgement: generatedResult.job_judgement,
+      scripts: generatedResult.scripts,
+      analysis: generatedResult.analysis,
+      resumeSuggestions: generatedResult.resume_suggestions,
+      interviewQuestions: generatedResult.interview_questions,
       status: "已投递",
       appliedAt: today,
       lastContactAt: today,
@@ -665,15 +680,23 @@ export default function Home() {
 
             <div className="panel-footer">
               <div className="button-row">
-                <button className="primary-button" type="button">
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={generateApplicationPlan}
+                  disabled={isGenerating}
+                >
                   <Send size={16} aria-hidden="true" />
-                  生成投递方案
+                  {isGenerating ? "生成中..." : "生成投递方案"}
                 </button>
                 <button className="secondary-button" onClick={clearForm} type="button">
                   <Trash2 size={16} aria-hidden="true" />
                   清空内容
                 </button>
               </div>
+              <span className="footer-notice is-error" aria-live="polite">
+                {generateError}
+              </span>
             </div>
           </section>
 
@@ -699,50 +722,50 @@ export default function Home() {
                 <div className="judgement-grid">
                   <div>
                     <span>投递优先级</span>
-                    <strong className={`judgement-pill ${getJudgementTone(jobFitJudgement.priority)}`}>
-                      {jobFitJudgement.priority}
+                    <strong className={`judgement-pill ${getJudgementTone(jobJudgement.priority)}`}>
+                      {jobJudgement.priority}
                     </strong>
                   </div>
                   <div>
                     <span>是否建议投递</span>
-                    <strong className={`judgement-pill ${getJudgementTone(jobFitJudgement.recommendation)}`}>
-                      {jobFitJudgement.recommendation}
+                    <strong className={`judgement-pill ${getJudgementTone(jobJudgement.recommendation)}`}>
+                      {jobJudgement.recommendation}
                     </strong>
                   </div>
                   <div>
                     <span>岗位类型判断</span>
-                    <strong className="judgement-pill is-neutral">{jobFitJudgement.jobType}</strong>
+                    <strong className="judgement-pill is-neutral">{jobJudgement.job_type}</strong>
                   </div>
                   <div>
                     <span>纯执行风险</span>
-                    <strong className={`judgement-pill ${getJudgementTone(jobFitJudgement.executionRisk)}`}>
-                      {jobFitJudgement.executionRisk}
+                    <strong className={`judgement-pill ${getJudgementTone(jobJudgement.execution_risk)}`}>
+                      {jobJudgement.execution_risk}
                     </strong>
                   </div>
                   <div>
                     <span>工作强度风险</span>
-                    <strong className={`judgement-pill ${getJudgementTone(jobFitJudgement.workloadRisk)}`}>
-                      {jobFitJudgement.workloadRisk}
+                    <strong className={`judgement-pill ${getJudgementTone(jobJudgement.workload_risk)}`}>
+                      {jobJudgement.workload_risk}
                     </strong>
                   </div>
                   <div>
                     <span>薪资城市适配</span>
-                    <strong className={`judgement-pill ${getJudgementTone(jobFitJudgement.salaryCityFit)}`}>
-                      {jobFitJudgement.salaryCityFit}
+                    <strong className={`judgement-pill ${getJudgementTone(jobJudgement.salary_city_fit)}`}>
+                      {jobJudgement.salary_city_fit}
                     </strong>
                   </div>
                 </div>
                 <div className="judgement-note">
                   <span>个性化判断理由</span>
                   <ul className="judgement-reasons">
-                    {jobFitJudgement.reasons.map((reason) => (
+                    {jobJudgement.reasons.map((reason) => (
                       <li key={reason}>{reason}</li>
                     ))}
                   </ul>
                 </div>
                 <div className="judgement-note is-risk">
                   <span>风险提醒</span>
-                  <p>{jobFitJudgement.risk}</p>
+                  <p>{jobJudgement.risk_note}</p>
                 </div>
               </section>
 
@@ -759,15 +782,19 @@ export default function Home() {
                   </button>
                 </div>
                 <div className="message-grid">
-                  {messages.map((message) => (
+                  {scriptCards.map((message) => (
                     <article
-                      className={`message-card ${message.recommended ? "is-recommended" : ""}`}
+                      className={`message-card ${
+                        displayResult.scripts.recommended === message.key ? "is-recommended" : ""
+                      }`}
                       key={message.title}
                     >
                       <div className="message-card-header">
                         <div className="message-title-row">
                           <h4>{message.title}</h4>
-                          {message.recommended ? <span className="recommend-badge">推荐</span> : null}
+                          {displayResult.scripts.recommended === message.key ? (
+                            <span className="recommend-badge">推荐</span>
+                          ) : null}
                         </div>
                         <button
                           className="copy-button"
@@ -837,7 +864,7 @@ export default function Home() {
                     <div className="match-summary">
                       <span className="score-badge">匹配度：82%</span>
                       <div className="keyword-list" aria-label="核心关键词">
-                        {["用户增长", "AI工具", "私域运营", "数据复盘"].map((keyword) => (
+                        {displayResult.analysis.keywords.map((keyword) => (
                           <span className="keyword" key={keyword}>
                             {keyword}
                           </span>
@@ -848,7 +875,7 @@ export default function Home() {
                       <div>
                         <h4>匹配点</h4>
                         <ul className="clean-list">
-                          {matchPoints.map((point) => (
+                          {displayResult.analysis.match_points.map((point) => (
                             <li key={point}>{point}</li>
                           ))}
                         </ul>
@@ -856,7 +883,9 @@ export default function Home() {
                       <div>
                         <h4>风险点</h4>
                         <ul className="clean-list risk-list">
-                          <li>如果岗位偏技术，需要补充 AI 工具落地表达</li>
+                          {displayResult.analysis.risk_points.map((point) => (
+                            <li key={point}>{point}</li>
+                          ))}
                         </ul>
                       </div>
                     </div>
@@ -866,7 +895,7 @@ export default function Home() {
                 {activeTab === "resume" ? (
                   <div className="tab-content" role="tabpanel">
                     <ul className="clean-list">
-                      {resumeTips.map((tip) => (
+                      {displayResult.resume_suggestions.map((tip) => (
                         <li key={tip}>{tip}</li>
                       ))}
                     </ul>
@@ -876,7 +905,7 @@ export default function Home() {
                 {activeTab === "interview" ? (
                   <div className="tab-content" role="tabpanel">
                     <ol className="question-list">
-                      {interviewQuestions.map((question) => (
+                      {displayResult.interview_questions.map((question) => (
                         <li key={question}>{question}</li>
                       ))}
                     </ol>
@@ -891,8 +920,8 @@ export default function Home() {
                   <Save size={16} aria-hidden="true" />
                   保存到投递记录
                 </button>
-                <button className="secondary-button" type="button" onClick={() => copyText("HR版", hrMessage)}>
-                  复制推荐话术
+                <button className="secondary-button" type="button" onClick={() => copyText("推荐话术", recommendedScriptText)}>
+                  {copiedTitle === "推荐话术" ? "已复制" : "复制推荐话术"}
                 </button>
               </div>
               <span className="save-notice" aria-live="polite">
