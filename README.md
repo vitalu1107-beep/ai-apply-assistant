@@ -1,21 +1,20 @@
 # AI 智能投递助手
 
-一个用于高频求职投递前的生成与复制工作台静态原型。
+一个用于高频求职投递前的生成与复制工作台原型。
 
-当前版本聚焦在前端 UI：用户粘贴简历文本和岗位 JD，选择投递平台、投递对象和强调方向后，页面展示岗位匹配分析、分对象打招呼话术、简历微调建议和面试前问题预测的 mock 结果。
+当前版本聚焦在前端工作台和 `/api/generate` 生成流程：用户粘贴简历文本和岗位 JD，选择投递平台、投递对象和强调方向后，页面展示岗位筛选判断、分对象打招呼话术、简历微调建议和面试前问题预测。
 
 ## 当前状态
 
-- 仅为静态 UI 原型
-- 未接 API
-- 未接火山方舟
+- UI 原型和本地 API 流程
+- 已预留火山方舟 / 豆包 OpenAI-compatible 调用
 - 未接 OpenAI
-- 未处理 API Key
+- API Key 只从服务端环境变量读取
 - 未接数据库
 - 未做登录注册
 - 未做自动投递
 - 未做 PDF 上传
-- 使用 mock 数据展示效果
+- 支持 mock 模式和真实 LLM 模式
 
 ## 技术栈
 
@@ -23,7 +22,41 @@
 - TypeScript
 - React
 - lucide-react
+- openai
 - CSS
+
+## 本地接入火山方舟 API
+
+复制环境变量示例文件：
+
+```bash
+cp .env.example .env.local
+```
+
+在 `.env.local` 中填写：
+
+```bash
+LLM_PROVIDER=volcengine
+LLM_API_KEY=你的火山方舟 API Key
+LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+LLM_MODEL=doubao-seed-2-1-turbo-260628
+GENERATE_MODE=llm
+```
+
+注意：
+
+- 不要提交 `.env.local`
+- 不要把 API Key 写进前端代码
+- 不要把 API Key 写进 GitHub
+- 不要使用 `NEXT_PUBLIC_` 保存 API Key
+- GitHub Pages 只能作为静态展示
+- 真实 API 调用需要本地运行，或部署到支持服务端函数的平台，例如 Vercel
+
+如果只想调试 UI、不调用真实模型，可以使用 mock 模式：
+
+```bash
+GENERATE_MODE=mock
+```
 
 ## 本地预览
 
@@ -96,7 +129,9 @@ https://vitalu1107-beep.github.io/ai-apply-assistant/
 
 ## 重要说明
 
-这个项目目前只是前端效果页。
+GitHub Pages 使用静态导出，只适合作为展示版；`/api/generate` 这种服务端接口不会在 GitHub Pages 上运行。
+
+如果要在线使用真实火山方舟 / 豆包 API，需要部署到 Vercel，并在 Vercel 项目中配置环境变量。
 
 GitHub 仓库用于托管代码，GitHub Actions + GitHub Pages 用于把静态页面发布成可访问的网址。
 

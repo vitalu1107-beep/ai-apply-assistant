@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 const root = process.cwd();
 const pagePath = join(root, "app", "page.tsx");
+const envExamplePath = join(root, ".env.example");
+const routePath = join(root, "app", "api", "generate", "route.ts");
 const forbiddenPaths = [
   join(root, "pages", "api"),
   join(root, ".env.local"),
@@ -33,12 +35,20 @@ const cssPath = join(root, "app", "globals.css");
 const css = existsSync(cssPath) ? readFileSync(cssPath, "utf8") : "";
 const mockPath = join(root, "lib", "mockGenerateResult.ts");
 const normalizePath = join(root, "lib", "normalizeGenerateResult.ts");
+const llmPath = join(root, "lib", "llm.ts");
+const promptPath = join(root, "lib", "prompt.ts");
+const parsePath = join(root, "lib", "parseModelResult.ts");
 const typePath = join(root, "types", "generate.ts");
 const applicationTypePath = join(root, "types", "application.ts");
 const generatedSource = [
   page,
+  existsSync(routePath) ? readFileSync(routePath, "utf8") : "",
+  existsSync(envExamplePath) ? readFileSync(envExamplePath, "utf8") : "",
   existsSync(mockPath) ? readFileSync(mockPath, "utf8") : "",
   existsSync(normalizePath) ? readFileSync(normalizePath, "utf8") : "",
+  existsSync(llmPath) ? readFileSync(llmPath, "utf8") : "",
+  existsSync(promptPath) ? readFileSync(promptPath, "utf8") : "",
+  existsSync(parsePath) ? readFileSync(parsePath, "utf8") : "",
   existsSync(typePath) ? readFileSync(typePath, "utf8") : "",
   existsSync(applicationTypePath) ? readFileSync(applicationTypePath, "utf8") : "",
 ].join("\n");
@@ -153,6 +163,17 @@ const requiredText = [
   "model",
   "isMock",
   "generatedAt",
+  "LLM_PROVIDER",
+  "LLM_API_KEY",
+  "LLM_BASE_URL",
+  "LLM_MODEL",
+  "GENERATE_MODE",
+  "generateWithLLM",
+  "buildGenerateMessages",
+  "parseModelResult",
+  "模型服务未配置，请检查环境变量。",
+  "模型调用失败，请稍后重试。",
+  "模型返回格式异常，请重新生成。",
 ];
 
 for (const text of requiredText) {
@@ -198,8 +219,29 @@ for (const path of forbiddenPaths) {
   assert(!existsSync(path), `${path} should not exist`);
 }
 
-for (const path of [mockPath, normalizePath, typePath, applicationTypePath]) {
+for (const path of [
+  mockPath,
+  normalizePath,
+  llmPath,
+  promptPath,
+  parsePath,
+  typePath,
+  applicationTypePath,
+  envExamplePath,
+  routePath,
+]) {
   assert(existsSync(path), `${path} should exist`);
+}
+
+const envExample = readFileSync(envExamplePath, "utf8");
+for (const envLine of [
+  "LLM_PROVIDER=volcengine",
+  "LLM_API_KEY=your_volcengine_api_key",
+  "LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3",
+  "LLM_MODEL=doubao-seed-2-1-turbo-260628",
+  "GENERATE_MODE=llm",
+]) {
+  assert(envExample.includes(envLine), `.env.example should include ${envLine}`);
 }
 
 const forbiddenUiPatterns = [
@@ -344,6 +386,64 @@ for (const normalizeTerm of [
   assert(normalizeSource.includes(normalizeTerm), `lib/normalizeGenerateResult.ts should include ${normalizeTerm}`);
 }
 
+const packageJson = readFileSync(join(root, "package.json"), "utf8");
+assert(packageJson.includes("\"openai\""), "package.json should include openai dependency");
+
+const llmSource = readFileSync(llmPath, "utf8");
+for (const llmTerm of [
+  "import OpenAI from \"openai\"",
+  "export async function generateWithLLM",
+  "process.env.LLM_API_KEY",
+  "process.env.LLM_BASE_URL",
+  "process.env.LLM_MODEL",
+  "缺少 LLM 环境变量配置",
+  "client.chat.completions.create",
+]) {
+  assert(llmSource.includes(llmTerm), `lib/llm.ts should include ${llmTerm}`);
+}
+assert(!llmSource.includes("your_volcengine_api_key"), "lib/llm.ts should not include placeholder API key");
+assert(!llmSource.includes("doubao-seed-2-1-turbo-260628"), "lib/llm.ts should not hardcode LLM_MODEL");
+assert(!llmSource.includes("ark.cn-beijing.volces.com"), "lib/llm.ts should not hardcode LLM_BASE_URL");
+
+const promptSource = readFileSync(promptPath, "utf8");
+for (const promptTerm of [
+  "export function buildGenerateMessages",
+  "不能虚构经历",
+  "不能夸大管理经验",
+  "不能编造不存在的项目结果",
+  "不能把个人 AI Agent 项目写成已商业化产品",
+  "模型必须返回纯 JSON",
+  "不要包裹 ```json",
+  "GenerateResult",
+]) {
+  assert(promptSource.includes(promptTerm), `lib/prompt.ts should include ${promptTerm}`);
+}
+
+const parseSource = readFileSync(parsePath, "utf8");
+for (const parseTerm of [
+  "export function parseModelResult",
+  "JSON.parse",
+  "normalizeGenerateResult",
+  "模型返回格式异常，请重新生成。",
+  "extractJsonObject",
+]) {
+  assert(parseSource.includes(parseTerm), `lib/parseModelResult.ts should include ${parseTerm}`);
+}
+
+const routeSource = readFileSync(routePath, "utf8");
+for (const routeTerm of [
+  "process.env.GENERATE_MODE",
+  "generateWithLLM",
+  "buildGenerateMessages",
+  "parseModelResult",
+  "模型服务未配置，请检查环境变量。",
+  "模型调用失败，请稍后重试。",
+  "模型返回格式异常，请重新生成。",
+  "withMeta(parsed, false)",
+]) {
+  assert(routeSource.includes(routeTerm), `app/api/generate/route.ts should include ${routeTerm}`);
+}
+
 const forbiddenUiText = [
   "邮件",
   "推荐使用话术",
@@ -392,10 +492,8 @@ const sourceFiles = [
 ].filter((path) => /\.(ts|tsx|js|jsx)$/.test(path));
 
 const forbiddenTerms = [
-  "VOLC",
   "ARK_API",
   "OPENAI_API_KEY",
-  "process.env",
   "createClient",
   "database",
 ];
@@ -404,6 +502,20 @@ for (const file of sourceFiles) {
   const content = readFileSync(file, "utf8");
   for (const term of forbiddenTerms) {
     assert(!content.includes(term), `${file} should not include ${term}`);
+  }
+}
+
+const forbiddenSecretPatterns = [
+  /sk-[A-Za-z0-9_-]{12,}/,
+  /AK[A-Za-z0-9_-]{12,}/,
+  /your_real/i,
+  /NEXT_PUBLIC_.*API/i,
+];
+
+for (const file of sourceFiles) {
+  const content = readFileSync(file, "utf8");
+  for (const pattern of forbiddenSecretPatterns) {
+    assert(!pattern.test(content), `${file} should not include secret-like pattern ${pattern}`);
   }
 }
 
