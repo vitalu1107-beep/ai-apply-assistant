@@ -448,6 +448,11 @@ a {
   background: var(--accent-hover);
 }
 
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
 .secondary-button,
 .subtle-button,
 .copy-button {
@@ -469,7 +474,8 @@ a {
   width: 100%;
 }
 
-.save-notice {
+.save-notice,
+.footer-notice {
   position: absolute;
   right: 26px;
   bottom: 3px;
@@ -481,6 +487,10 @@ a {
   line-height: 1.2;
   text-align: center;
   pointer-events: none;
+}
+
+.footer-notice.is-error {
+  color: var(--danger-text);
 }
 
 .summary-strip {
