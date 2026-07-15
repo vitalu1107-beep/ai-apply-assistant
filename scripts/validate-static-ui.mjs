@@ -32,11 +32,15 @@ const page = readFileSync(pagePath, "utf8");
 const cssPath = join(root, "app", "globals.css");
 const css = existsSync(cssPath) ? readFileSync(cssPath, "utf8") : "";
 const mockPath = join(root, "lib", "mockGenerateResult.ts");
+const normalizePath = join(root, "lib", "normalizeGenerateResult.ts");
 const typePath = join(root, "types", "generate.ts");
+const applicationTypePath = join(root, "types", "application.ts");
 const generatedSource = [
   page,
   existsSync(mockPath) ? readFileSync(mockPath, "utf8") : "",
+  existsSync(normalizePath) ? readFileSync(normalizePath, "utf8") : "",
   existsSync(typePath) ? readFileSync(typePath, "utf8") : "",
+  existsSync(applicationTypePath) ? readFileSync(applicationTypePath, "utf8") : "",
 ].join("\n");
 const requiredText = [
   "AI 智能投递助手",
@@ -131,6 +135,24 @@ const requiredText = [
   "备注",
   "操作",
   "删除",
+  "GenerateRequest",
+  "GenerateResult",
+  "GenerateMeta",
+  "Platform",
+  "Recipient",
+  "FocusArea",
+  "PersonalPreferences",
+  "targetCities",
+  "workModes",
+  "ScriptType",
+  "ApplicationRecord",
+  "ApplicationStatus",
+  "normalizeGenerateResult",
+  "meta",
+  "provider",
+  "model",
+  "isMock",
+  "generatedAt",
 ];
 
 for (const text of requiredText) {
@@ -174,6 +196,10 @@ assertOrder(outputWorkspace, "补充要求", "更多分析", "output workbench o
 
 for (const path of forbiddenPaths) {
   assert(!existsSync(path), `${path} should not exist`);
+}
+
+for (const path of [mockPath, normalizePath, typePath, applicationTypePath]) {
+  assert(existsSync(path), `${path} should exist`);
 }
 
 const forbiddenUiPatterns = [
@@ -252,6 +278,7 @@ for (const storageTerm of [
   "generatedResult",
   "generateApplicationPlan",
   "displayResult",
+  "normalizeGenerateResult",
   "salaryNegotiable",
   "selectedCity",
   "selectedWorkMode",
@@ -260,6 +287,61 @@ for (const storageTerm of [
   "deleteRecord",
 ]) {
   assert(page.includes(storageTerm), `app/page.tsx should include ${storageTerm}`);
+}
+
+for (const duplicatedType of [
+  "type ApplicationRecord =",
+  "type ApplicationStatus =",
+  "function isGenerateResult",
+]) {
+  assert(!page.includes(duplicatedType), `app/page.tsx should not locally define ${duplicatedType}`);
+}
+
+const generateTypes = readFileSync(typePath, "utf8");
+for (const typeTerm of [
+  "export type Platform",
+  "export type Recipient",
+  "export type FocusArea",
+  "export type PersonalPreferences",
+  "export type GenerateMeta",
+  "export type JobPriority",
+  "export type Recommendation",
+  "export type JobType",
+  "export type RiskLevel",
+  "export type WorkloadRisk",
+  "export type FitStatus",
+  "export type ScriptType",
+  "targetCities?: string[]",
+  "workModes?: string[]",
+  "jobDescription: string",
+]) {
+  assert(generateTypes.includes(typeTerm), `types/generate.ts should include ${typeTerm}`);
+}
+
+const applicationTypes = readFileSync(applicationTypePath, "utf8");
+for (const typeTerm of [
+  "export type ApplicationStatus",
+  "export type ApplicationRecord",
+  "jobJudgement?: JobJudgement",
+  "scripts?: OutreachScripts",
+  "analysis?: GenerateAnalysis",
+  "resumeSuggestions?: string[]",
+  "interviewQuestions?: string[]",
+]) {
+  assert(applicationTypes.includes(typeTerm), `types/application.ts should include ${typeTerm}`);
+}
+
+const normalizeSource = readFileSync(normalizePath, "utf8");
+for (const normalizeTerm of [
+  "export function normalizeGenerateResult",
+  "priority: normalizeEnum",
+  "recommendation: normalizeEnum",
+  "recommended: normalizeEnum",
+  "keywords: normalizeStringArray",
+  "resume_suggestions: normalizeStringArray",
+  "interview_questions: normalizeStringArray",
+]) {
+  assert(normalizeSource.includes(normalizeTerm), `lib/normalizeGenerateResult.ts should include ${normalizeTerm}`);
 }
 
 const forbiddenUiText = [

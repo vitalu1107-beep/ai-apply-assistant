@@ -46,4 +46,8 @@ export const mockGenerateResult: GenerateResult = {
     "你如何判断一个岗位和自己是否匹配？",
     "如果让你设计一个运营提效工具，你会怎么做？",
   ],
+  meta: {
+    provider: "mock",
+    isMock: true,
+  },
 };

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { mockGenerateResult } from "../../../lib/mockGenerateResult";
-import type { GenerateRequest } from "../../../types/generate";
+import { normalizeGenerateResult } from "../../../lib/normalizeGenerateResult";
+import type { GenerateRequest, GenerateResult } from "../../../types/generate";
 
 export async function POST(request: Request) {
   let payload: Partial<GenerateRequest>;
@@ -16,5 +17,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "请先粘贴岗位 JD。" }, { status: 400 });
   }
 
-  return NextResponse.json(mockGenerateResult);
+  const result: GenerateResult = normalizeGenerateResult({
+    ...mockGenerateResult,
+    meta: {
+      ...mockGenerateResult.meta,
+      generatedAt: new Date().toISOString(),
+    },
+  });
+
+  return NextResponse.json(result);
 }

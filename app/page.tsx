@@ -4,21 +4,24 @@ import { Clipboard, FileText, Link2, Save, Send, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 import { mockGenerateResult } from "../lib/mockGenerateResult";
+import { normalizeGenerateResult } from "../lib/normalizeGenerateResult";
+import type { ApplicationRecord, ApplicationStatus } from "../types/application";
 import type {
-  GenerateAnalysis,
+  FocusArea,
   GenerateRequest,
   GenerateResult,
-  JobJudgement,
   OutreachScripts,
+  Platform,
+  Recipient,
 } from "../types/generate";
 
 const APPLICATION_RECORDS_KEY = "ai-apply-assistant:application-records";
 
-const platforms = ["Boss直聘", "猎聘", "拉勾", "其他"];
-const targets = ["HR", "猎头", "业务主管", "老板/创始人"];
+const platforms: Platform[] = ["Boss直聘", "猎聘", "拉勾", "其他"];
+const targets: Recipient[] = ["HR", "猎头", "业务主管", "老板/创始人"];
 const cityOptions = ["杭州", "上海", "深圳", "广州", "远程", "其他"];
 const workModeOptions = ["到岗", "混合办公", "远程", "不确定"];
-const focusOptions = [
+const focusOptions: FocusArea[] = [
   "AI运营能力",
   "用户增长经验",
   "Agent项目经验",
@@ -28,44 +31,14 @@ const focusOptions = [
   "项目管理",
   "业务理解",
 ];
-const defaultFocus = ["AI运营能力", "用户增长经验", "Agent项目经验"];
+const defaultFocus: FocusArea[] = ["AI运营能力", "用户增长经验", "Agent项目经验"];
 
-const statusOptions = ["已投递", "已回复", "待跟进", "已约面", "已拒绝", "放弃"] as const;
+const statusOptions = ["已投递", "已回复", "待跟进", "已约面", "已拒绝", "放弃"] satisfies ApplicationStatus[];
 const filterOptions = ["全部", ...statusOptions] as const;
 
 type AnalysisTab = "match" | "resume" | "interview";
 type ViewTab = "workbench" | "records";
-type ApplicationStatus = (typeof statusOptions)[number];
 type ApplicationFilter = (typeof filterOptions)[number];
-
-type ApplicationRecord = {
-  id: string;
-  companyName: string;
-  jobTitle: string;
-  jobLink: string;
-  expectedSalary: string;
-  minimumSalary: string;
-  salaryNegotiable: boolean;
-  city: string;
-  workMode: string;
-  jobDirection: string;
-  jobType: string;
-  workloadRisk: string;
-  platform: string;
-  recipient: string;
-  focusAreas: string[];
-  recommendedScriptType: string;
-  jobJudgement?: JobJudgement;
-  scripts?: OutreachScripts;
-  analysis?: GenerateAnalysis;
-  resumeSuggestions?: string[];
-  interviewQuestions?: string[];
-  status: ApplicationStatus;
-  appliedAt: string;
-  lastContactAt: string;
-  nextFollowUpAt: string;
-  notes: string;
-};
 
 function formatDate(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -83,29 +56,7 @@ function isApplicationRecord(value: unknown): value is ApplicationRecord {
   }
 
   const record = value as Partial<ApplicationRecord>;
-  return Boolean(record.id && record.companyName && record.jobTitle && record.status);
-}
-
-function isGenerateResult(value: unknown): value is GenerateResult {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const result = value as Partial<GenerateResult>;
-  return Boolean(
-    result.job_judgement?.priority &&
-      result.job_judgement.recommendation &&
-      Array.isArray(result.job_judgement.reasons) &&
-      result.scripts?.recommended &&
-      result.scripts.hr &&
-      result.scripts.headhunter &&
-      result.scripts.manager &&
-      result.scripts.founder &&
-      result.analysis &&
-      Array.isArray(result.analysis.keywords) &&
-      Array.isArray(result.resume_suggestions) &&
-      Array.isArray(result.interview_questions),
-  );
+  return Boolean(record.id && record.status);
 }
 
 function getRecommendedScriptText(scripts: OutreachScripts) {
@@ -114,9 +65,9 @@ function getRecommendedScriptText(scripts: OutreachScripts) {
 
 export default function Home() {
   const [activeView, setActiveView] = useState<ViewTab>("workbench");
-  const [selectedPlatform, setSelectedPlatform] = useState("Boss直聘");
-  const [selectedTarget, setSelectedTarget] = useState("HR");
-  const [selectedFocus, setSelectedFocus] = useState(defaultFocus);
+  const [selectedPlatform, setSelectedPlatform] = useState<Platform>("Boss直聘");
+  const [selectedTarget, setSelectedTarget] = useState<Recipient>("HR");
+  const [selectedFocus, setSelectedFocus] = useState<FocusArea[]>(defaultFocus);
   const [companyName, setCompanyName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [jobLink, setJobLink] = useState("");
@@ -257,7 +208,7 @@ export default function Home() {
     return status === "放弃" ? "is-muted" : "is-neutral";
   }
 
-  function toggleFocus(option: string) {
+  function toggleFocus(option: FocusArea) {
     setSelectedFocus((current) =>
       current.includes(option)
         ? current.filter((item) => item !== option)
@@ -280,11 +231,10 @@ export default function Home() {
       recipient: selectedTarget,
       focusAreas: selectedFocus,
       personalPreferences: {
-        expectedSalary,
+        targetCities: [selectedCity],
+        expectedSalary: salaryNegotiable ? "面议" : expectedSalary,
         minimumSalary,
-        salaryNegotiable,
-        city: selectedCity,
-        workMode: selectedWorkMode,
+        workModes: [selectedWorkMode],
       },
       resumeText,
     };
@@ -309,12 +259,7 @@ export default function Home() {
         return;
       }
 
-      if (!isGenerateResult(data)) {
-        setGenerateError("生成结果异常，请重新生成。");
-        return;
-      }
-
-      setGeneratedResult(data);
+      setGeneratedResult(normalizeGenerateResult(data));
       setCopiedTitle("");
     } catch {
       setGenerateError("生成失败，请稍后重试。");
@@ -1014,14 +959,14 @@ export default function Home() {
                       <Fragment key={record.id}>
                         <tr>
                           <td>
-                            <strong>{record.companyName}</strong>
-                            <span>{record.recipient}</span>
+                            <strong>{record.companyName || "未填写公司"}</strong>
+                            <span>{record.recipient || "HR"}</span>
                           </td>
                           <td>
-                            <strong>{record.jobTitle}</strong>
-                            <span>{record.focusAreas.slice(0, 2).join("、")}</span>
+                            <strong>{record.jobTitle || "未填写岗位"}</strong>
+                            <span>{record.focusAreas?.slice(0, 2).join("、") || "未选择强调方向"}</span>
                           </td>
-                          <td>{record.platform}</td>
+                          <td>{record.platform || "Boss直聘"}</td>
                           <td>
                             <select
                               className={`status-select ${getStatusTone(record.status)}`}
@@ -1039,10 +984,10 @@ export default function Home() {
                             </select>
                           </td>
                           <td>{record.appliedAt}</td>
-                          <td>{record.nextFollowUpAt}</td>
+                          <td>{record.nextFollowUpAt || "-"}</td>
                           <td>
                             <div className="table-actions">
-                              <a className="table-link" href={record.jobLink} target="_blank" rel="noreferrer">
+                              <a className="table-link" href={record.jobLink || "#"} target="_blank" rel="noreferrer">
                                 <Link2 size={14} aria-hidden="true" />
                                 岗位链接
                               </a>
@@ -1065,7 +1010,7 @@ export default function Home() {
                                 {record.city || "杭州"} · {record.workMode || "混合办公"}
                               </span>
                               <input
-                                value={record.notes}
+                                value={record.notes || ""}
                                 onChange={(event) => updateRecordNotes(record.id, event.target.value)}
                                 placeholder="备注：记录回复情况、沟通要点或下次跟进计划。"
                               />
