@@ -127,6 +127,51 @@ npm run test
 https://vitalu1107-beep.github.io/ai-apply-assistant/
 ```
 
+## Vercel 部署说明
+
+当前项目有两种访问方式：
+
+1. GitHub Pages
+   - 用于静态 UI 展示
+   - 不适合真实调用火山方舟 API
+   - 路径为 `/ai-apply-assistant/`
+
+2. Vercel
+   - 用于真实 API 可用版
+   - 支持 `/api/generate` 服务端接口
+   - API Key 通过 Vercel Environment Variables 配置
+
+在 Vercel 中需要配置以下环境变量：
+
+```bash
+LLM_PROVIDER=volcengine
+LLM_API_KEY=your_volcengine_api_key
+LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+LLM_MODEL=doubao-seed-2-1-turbo-260628
+GENERATE_MODE=llm
+```
+
+说明：
+
+- `LLM_API_KEY` 由用户自己填写真实火山方舟 API Key
+- 不要提交 `.env.local`
+- 不要把 API Key 写入 GitHub
+- 不要使用 `NEXT_PUBLIC_LLM_API_KEY`
+- 修改 Vercel 环境变量后，需要重新部署项目
+- 如果想不调用真实模型调试，可以设置 `GENERATE_MODE=mock`
+
+上线后检查：
+
+- Vercel Production 部署成功
+- 打开 Vercel 域名页面正常
+- 不填写 JD 时，点击生成提示“请先粘贴岗位 JD。”
+- 未配置 `LLM_API_KEY` 时，接口返回“模型服务未配置，请检查环境变量。”
+- 配置完整环境变量后，点击生成可以真实调用火山方舟
+- 右侧结果不是固定 mock，而是根据 JD 变化
+- 保存到投递记录正常
+- 浏览器前端源码中看不到 `LLM_API_KEY`
+- Vercel Function Logs 不输出 API Key
+
 ## 重要说明
 
 GitHub Pages 使用静态导出，只适合作为展示版；`/api/generate` 这种服务端接口不会在 GitHub Pages 上运行。
