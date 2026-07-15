@@ -5,6 +5,8 @@ const root = process.cwd();
 const pagePath = join(root, "app", "page.tsx");
 const envExamplePath = join(root, ".env.example");
 const routePath = join(root, "app", "api", "generate", "route.ts");
+const healthRoutePath = join(root, "app", "api", "health", "route.ts");
+const healthPagePath = join(root, "app", "health", "page.tsx");
 const forbiddenPaths = [
   join(root, "pages", "api"),
   join(root, ".env.local"),
@@ -229,9 +231,36 @@ for (const path of [
   applicationTypePath,
   envExamplePath,
   routePath,
+  healthRoutePath,
+  healthPagePath,
 ]) {
   assert(existsSync(path), `${path} should exist`);
 }
+
+const healthRouteSource = readFileSync(healthRoutePath, "utf8");
+for (const healthTerm of [
+  "export const revalidate = 1",
+  "export async function GET",
+  'ok: true',
+  'service: "ai-apply-assistant"',
+  'runtime: "vercel"',
+  "new Date().toISOString()",
+]) {
+  assert(
+    healthRouteSource.includes(healthTerm),
+    `app/api/health/route.ts should include ${healthTerm}`,
+  );
+}
+assert(
+  !healthRouteSource.includes("process.env"),
+  "app/api/health/route.ts should not read environment variables",
+);
+
+const healthPageSource = readFileSync(healthPagePath, "utf8");
+assert(
+  healthPageSource.includes("AI Apply Assistant is running."),
+  "app/health/page.tsx should show the static health message",
+);
 
 const envExample = readFileSync(envExamplePath, "utf8");
 for (const envLine of [
